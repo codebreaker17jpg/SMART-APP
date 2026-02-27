@@ -1,0 +1,51 @@
+{
+  "attendance_records": [
+    {
+      "id": "5b0cb15c-b963-41ae-b11a-a40a3088cfa5",
+      "student_id": "20000000-0000-0000-0000-000000000001",
+      "subject_id": "30000000-0000-0000-0000-000000000001",
+      "class_date": "2026-02-17",
+      "status": "present",
+      "marked_at": "2026-02-17T06:29:04.755289+00:00",
+      "marked_by": "10000000-0000-0000-0000-000000000001",
+      "created_at": "2026-02-17T06:29:04.755289+00:00"
+    }
+  ],
+  "curriculum_topics": [
+    {
+      "id": "84cef5e2-934e-4ec8-bfca-84836fd9e594",
+      "subject_id": "30000000-0000-0000-0000-000000000001",
+      "title": "Introduction to AI",
+      "description": "History, applications, and fundamentals of AI",
+      "order_number": 1,
+      "estimated_hours": 4,
+      "status": "completed",
+      "completed_at": null,
+      "created_at": "2026-02-17T06:29:04.755289+00:00"
+    }
+  ],
+  "subjects": [
+    {
+      "id": "30000000-0000-0000-0000-000000000001",
+      "name": "Artificial Intelligence & Machine Learning",
+      "code": "CS501",
+      "department": "Computer Science",
+      "semester": 5,
+      "teacher_id": "10000000-0000-0000-0000-000000000001",
+      "total_classes": 45,
+      "created_at": "2026-02-17T06:29:04.755289+00:00"
+    }
+  ],
+  "students": {
+    "code": "PGRST205",
+    "details": null,
+    "hint": "Perhaps you meant the table 'public.subjects'",
+    "message": "Could not find the table 'public.students' in the schema cache"
+  },
+  "faculties": {
+    "code": "PGRST205",
+    "details": null,
+    "hint": "Perhaps you meant the table 'public.curriculum_topics'",
+    "message": "Could not find the table 'public.faculties' in the schema cache"
+  }
+}

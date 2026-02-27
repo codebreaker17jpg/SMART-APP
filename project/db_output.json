@@ -1,0 +1,57 @@
+{
+  "attendance_records": [
+    {
+      "id": "e8299cd9-f6ef-42a3-ac12-15ad8dfb792a",
+      "student_id": "38f34054-b834-4a29-85b5-74d8e48358e7",
+      "subject_id": "8442ba4b-0885-44c6-9af6-1243124e6ca7",
+      "class_date": "2026-02-08",
+      "status": "present",
+      "marked_at": "2026-02-08T09:09:18.985+00:00",
+      "marked_by": "e75ae29a-6483-4cee-a8e9-39fdece39ea9",
+      "created_at": "2026-02-08T09:09:18.985+00:00"
+    }
+  ],
+  "curriculum_topics": [
+    {
+      "id": "6003e1cf-b9b5-4722-bbe3-b7bfcbebdd7a",
+      "subject_id": "8442ba4b-0885-44c6-9af6-1243124e6ca7",
+      "title": "Punjabi (Compulsory) - Introduction to the Subject",
+      "description": "Comprehensive coverage of Introduction to the Subject as per PSEB guidelines for Punjabi (Compulsory).",
+      "order_number": 1,
+      "estimated_hours": 2,
+      "status": "completed",
+      "completed_at": "2026-02-14T10:56:49.47+00:00",
+      "created_at": "2026-02-24T10:56:49.47+00:00"
+    }
+  ],
+  "subjects": [
+    {
+      "id": "8442ba4b-0885-44c6-9af6-1243124e6ca7",
+      "name": "Punjabi (Compulsory)",
+      "code": "PBI101",
+      "department": "Languages",
+      "semester": 1,
+      "teacher_id": "e75ae29a-6483-4cee-a8e9-39fdece39ea9",
+      "total_classes": 40,
+      "created_at": "2026-02-24T10:56:49.46+00:00"
+    }
+  ],
+  "students": [
+    {
+      "id": "38f34054-b834-4a29-85b5-74d8e48358e7",
+      "name": "Amanpreet Singh",
+      "roll_number": "PUN-001",
+      "subject_major": "AI & ML",
+      "created_at": "2026-02-19T14:35:28.69845+00:00"
+    }
+  ],
+  "faculties": [
+    {
+      "id": "e75ae29a-6483-4cee-a8e9-39fdece39ea9",
+      "name": "Dr. Vikas Khanna",
+      "department": "Computer Science",
+      "email": "v.khanna@college.edu",
+      "created_at": "2026-02-19T14:35:28.69845+00:00"
+    }
+  ]
+}

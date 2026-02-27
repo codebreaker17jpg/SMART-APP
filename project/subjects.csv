@@ -1,0 +1,11 @@
+id,name,code,department,semester,teacher_id,total_classes,created_at
+"8442ba4b-0885-44c6-9af6-1243124e6ca7","Punjabi (Compulsory)","PBI101","Languages",1,"e75ae29a-6483-4cee-a8e9-39fdece39ea9",40,"2026-02-24T10:56:49.460Z"
+"52c9543c-1df3-4bfc-be28-3521a0d3b154","General English","ENG101","Languages",1,"bd208519-d0b8-4ebb-ab62-4d92ce8c6be4",40,"2026-02-24T10:56:49.461Z"
+"a04c1293-bc7d-4921-8b76-b4f910ce2e3a","Mathematics","MATH101","Science",1,"b4e9aba1-3f01-43a5-ba18-1dae8b34b951",40,"2026-02-24T10:56:49.461Z"
+"fe5779f3-da1c-4a12-ae9d-76076f84e88d","Physics","PHY101","Science",1,"baaf7f52-bf12-43f1-97e9-0f6096b242e9",40,"2026-02-24T10:56:49.461Z"
+"1e1acbd1-ddf2-42a9-b05c-aa88798bef98","Chemistry","CHEM101","Science",1,"b8f879db-739f-4737-b272-5a155b81c954",40,"2026-02-24T10:56:49.461Z"
+"1be5dc1f-319f-4798-aecf-9fc10e4c3f7c","Biology","BIO101","Science",1,"e75ae29a-6483-4cee-a8e9-39fdece39ea9",40,"2026-02-24T10:56:49.461Z"
+"59bf381e-cd09-4407-949f-64cd39ca183a","History of Punjab","HIST101","Humanities",1,"bd208519-d0b8-4ebb-ab62-4d92ce8c6be4",40,"2026-02-24T10:56:49.461Z"
+"c1a0b039-1f5a-4851-b291-88ddf8fdad8a","Political Science","POL101","Humanities",1,"b4e9aba1-3f01-43a5-ba18-1dae8b34b951",40,"2026-02-24T10:56:49.461Z"
+"22bc0642-55a4-427b-9c8b-45f958cc3c3a","Computer Science","CS101","Technology",1,"baaf7f52-bf12-43f1-97e9-0f6096b242e9",40,"2026-02-24T10:56:49.461Z"
+"a5e74ad5-8cb1-4d8e-b6c5-52f69fab4306","Physical Education","PE101","Sports",1,"b8f879db-739f-4737-b272-5a155b81c954",40,"2026-02-24T10:56:49.461Z"

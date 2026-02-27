@@ -1,0 +1,6 @@
+id,name,description,icon,criteria,created_at
+"94d14941-e7b9-4661-a1db-422a1e1d3ba0","Perfect Attendance","Attended all classes for a month continuously without any absence.","Trophy","100_percent_attendance_30_days","2026-02-24T10:56:49.492Z"
+"9896884d-50d2-4cb1-a09f-cccea82649c4","Topper of the Month","Achieved the highest scores in monthly assessments.","Star","highest_score_monthly","2026-02-24T10:56:49.492Z"
+"57138186-d942-4116-ae50-9f36b3f69fd4","Curriculum Champion","Completed all curriculum topics ahead of schedule.","BookOpen","early_curriculum_completion","2026-02-24T10:56:49.492Z"
+"4d02e93d-7bdc-4949-917e-0e4b5c1c98cc","Star Participant","Highly active and engaging during live class sessions.","Flame","active_participation","2026-02-24T10:56:49.492Z"
+"ab4e4d17-d4d5-4c36-a1e5-6ea28dddc21e","PSEB Scholar","Demonstrated exceptional understanding of the Punjab Board curriculum.","Award","scholastic_excellence","2026-02-24T10:56:49.492Z"

@@ -1,0 +1,58 @@
+{
+  "studentCount": 70,
+  "facultyCount": 5,
+  "subjectsLength": 10,
+  "attendanceLength": 1000,
+  "attendanceSample": {
+    "id": "e8299cd9-f6ef-42a3-ac12-15ad8dfb792a",
+    "student_id": "38f34054-b834-4a29-85b5-74d8e48358e7",
+    "subject_id": "8442ba4b-0885-44c6-9af6-1243124e6ca7",
+    "class_date": "2026-02-08",
+    "status": "present",
+    "marked_at": "2026-02-08T09:09:18.985+00:00",
+    "marked_by": "e75ae29a-6483-4cee-a8e9-39fdece39ea9",
+    "created_at": "2026-02-08T09:09:18.985+00:00"
+  },
+  "subjectsWithTopics": [
+    {
+      "name": "Punjabi (Compulsory)",
+      "topicsLength": 7
+    },
+    {
+      "name": "General English",
+      "topicsLength": 6
+    },
+    {
+      "name": "Mathematics",
+      "topicsLength": 8
+    },
+    {
+      "name": "Physics",
+      "topicsLength": 5
+    },
+    {
+      "name": "Chemistry",
+      "topicsLength": 8
+    },
+    {
+      "name": "Biology",
+      "topicsLength": 5
+    },
+    {
+      "name": "History of Punjab",
+      "topicsLength": 7
+    },
+    {
+      "name": "Political Science",
+      "topicsLength": 6
+    },
+    {
+      "name": "Computer Science",
+      "topicsLength": 7
+    },
+    {
+      "name": "Physical Education",
+      "topicsLength": 8
+    }
+  ]
+}

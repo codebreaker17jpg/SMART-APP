@@ -1,0 +1,12 @@
+{
+  "topicStatuses": [
+    "completed",
+    "in_progress",
+    "pending"
+  ],
+  "attStatuses": [
+    "present",
+    "late",
+    "absent"
+  ]
+}
