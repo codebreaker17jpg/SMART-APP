@@ -1,0 +1,2100 @@
+﻿diff --git a/backend/.env b/backend/.env
+index ce0dad1..6f9ab99 100644
+--- a/backend/.env
++++ b/backend/.env
+@@ -1,2 +1,4 @@
+ SUPABASE_URL=https://ldjezkuwpstlyhegmnau.supabase.co
+ SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkamV6a3V3cHN0bHloZWdtbmF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MDY0NjAsImV4cCI6MjA4NzA4MjQ2MH0.v2hJ3cqlmPTyoYplrCuPsyo333SsvzQru0ol2uQRjRM
++SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkamV6a3V3cHN0bHloZWdtbmF1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTUwNjQ2MCwiZXhwIjoyMDg3MDgyNDYwfQ.Z6G-I4zlSHVOX4OWcULb226xx6HWJidz6XawCWemGrc
++ALLOWED_ORIGINS=["http://localhost:5173","http://localhost:5174","http://127.0.0.1:5173","http://127.0.0.1:5174"]
+\ No newline at end of file
+diff --git a/backend/__pycache__/main.cpython-311.pyc b/backend/__pycache__/main.cpython-311.pyc
+index 75e80cc..a77af1d 100644
+Binary files a/backend/__pycache__/main.cpython-311.pyc and b/backend/__pycache__/main.cpython-311.pyc differ
+diff --git a/backend/__pycache__/main.cpython-314.pyc b/backend/__pycache__/main.cpython-314.pyc
+index 75ca25b..9f40db3 100644
+Binary files a/backend/__pycache__/main.cpython-314.pyc and b/backend/__pycache__/main.cpython-314.pyc differ
+diff --git a/backend/core/__pycache__/config.cpython-311.pyc b/backend/core/__pycache__/config.cpython-311.pyc
+index 0a716d7..b9a3cb0 100644
+Binary files a/backend/core/__pycache__/config.cpython-311.pyc and b/backend/core/__pycache__/config.cpython-311.pyc differ
+diff --git a/backend/core/__pycache__/config.cpython-314.pyc b/backend/core/__pycache__/config.cpython-314.pyc
+index bb13663..70f9263 100644
+Binary files a/backend/core/__pycache__/config.cpython-314.pyc and b/backend/core/__pycache__/config.cpython-314.pyc differ
+diff --git a/backend/core/__pycache__/database.cpython-311.pyc b/backend/core/__pycache__/database.cpython-311.pyc
+index 60cac1e..4484df7 100644
+Binary files a/backend/core/__pycache__/database.cpython-311.pyc and b/backend/core/__pycache__/database.cpython-311.pyc differ
+diff --git a/backend/core/__pycache__/database.cpython-314.pyc b/backend/core/__pycache__/database.cpython-314.pyc
+index 8af9730..cfe5d88 100644
+Binary files a/backend/core/__pycache__/database.cpython-314.pyc and b/backend/core/__pycache__/database.cpython-314.pyc differ
+diff --git a/backend/core/config.py b/backend/core/config.py
+index c5cca21..0007329 100644
+--- a/backend/core/config.py
++++ b/backend/core/config.py
+@@ -1,4 +1,5 @@
+ from pydantic_settings import BaseSettings
++from pydantic import field_validator
+ from functools import lru_cache
+ 
+ 
+@@ -7,6 +8,7 @@ class Settings(BaseSettings):
+ 
+     SUPABASE_URL: str
+     SUPABASE_SERVICE_KEY: str
++    SUPABASE_SERVICE_ROLE_KEY: str
+ 
+     # App metadata
+     APP_NAME: str = "SMART APP API"
+@@ -19,6 +21,13 @@ class Settings(BaseSettings):
+         "http://localhost:3000",
+     ]
+ 
++    @field_validator("ALLOWED_ORIGINS", mode="before")
++    @classmethod
++    def parse_origins(cls, v: object) -> list[str]:
++        if isinstance(v, str):
++            return [s.strip() for s in v.split(",") if s.strip()]
++        return v  # type: ignore
++
+     model_config = {
+         "env_file": ".env",
+         "env_file_encoding": "utf-8",
+diff --git a/backend/core/database.py b/backend/core/database.py
+index 5686abc..4b93a38 100644
+--- a/backend/core/database.py
++++ b/backend/core/database.py
+@@ -26,3 +26,29 @@ def get_supabase() -> Client:
+             ...
+     """
+     return _init_supabase()
++
++
++# ΓöÇΓöÇ Admin client (service-role key) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
++_admin_client: Client | None = None
++
++
++def _init_admin_supabase() -> Client:
++    """Lazily initialise the admin Supabase client (service-role key)."""
++    global _admin_client
++    if _admin_client is None:
++        settings = get_settings()
++        _admin_client = create_client(
++            settings.SUPABASE_URL,
++            settings.SUPABASE_SERVICE_ROLE_KEY,
++        )
++    return _admin_client
++
++
++def get_admin_supabase() -> Client:
++    """FastAPI dependency ΓÇô returns the admin Supabase client.
++
++    This client uses the service-role key and can call
++    supabase.auth.admin.create_user() and bypass RLS.
++    """
++    return _init_admin_supabase()
+diff --git a/backend/main.py b/backend/main.py
+index 0c297aa..ec3fd6a 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -2,7 +2,7 @@ from fastapi import FastAPI
+ from fastapi.middleware.cors import CORSMiddleware
+ 
+ from core.config import get_settings
+-from routers import attendance, curriculum, ai_features
++from routers import attendance, curriculum, ai_features, admin_users
+ from models.schemas import HealthResponse
+ 
+ # ΓöÇΓöÇ Bootstrap ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+@@ -32,6 +32,7 @@ app.add_middleware(
+ app.include_router(attendance.router)
+ app.include_router(curriculum.router)
+ app.include_router(ai_features.router)
++app.include_router(admin_users.router)
+ 
+ # ΓöÇΓöÇ Root / Health ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+ 
+diff --git a/backend/models/__pycache__/schemas.cpython-311.pyc b/backend/models/__pycache__/schemas.cpython-311.pyc
+index 915c937..1e5a8e2 100644
+Binary files a/backend/models/__pycache__/schemas.cpython-311.pyc and b/backend/models/__pycache__/schemas.cpython-311.pyc differ
+diff --git a/backend/models/__pycache__/schemas.cpython-314.pyc b/backend/models/__pycache__/schemas.cpython-314.pyc
+index 9a571e5..39d85da 100644
+Binary files a/backend/models/__pycache__/schemas.cpython-314.pyc and b/backend/models/__pycache__/schemas.cpython-314.pyc differ
+diff --git a/backend/models/schemas.py b/backend/models/schemas.py
+index 9a347b2..72e5c07 100644
+--- a/backend/models/schemas.py
++++ b/backend/models/schemas.py
+@@ -107,3 +107,43 @@ class HealthResponse(BaseModel):
+ 
+ class MessageResponse(BaseModel):
+     message: str
++
++
++# ΓöÇΓöÇ Admin User Management ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
++class UserRole(str, Enum):
++    student = "student"
++    teacher = "teacher"
++
++
++class UserCreateRequest(BaseModel):
++    """Payload for POST /admin/users/create."""
++    email: str = Field(..., description="User email address")
++    password: str = Field(..., min_length=6, description="Minimum 6 characters")
++    role: UserRole
++    name: str = Field(..., min_length=1)
++    # Student-specific
++    roll_number: Optional[str] = None
++    subject_major: Optional[str] = None
++    # Teacher-specific
++    department: Optional[str] = None
++
++
++class UserCreateResponse(BaseModel):
++    success: bool
++    message: str
++    user_id: Optional[str] = None
++
++
++class BulkUploadResult(BaseModel):
++    row: int
++    email: str
++    success: bool
++    message: str
++
++
++class BulkUploadResponse(BaseModel):
++    total: int
++    succeeded: int
++    failed: int
++    results: list[BulkUploadResult]
+diff --git a/backend/requirements.txt b/backend/requirements.txt
+index 36f4e0c..dc18743 100644
+--- a/backend/requirements.txt
++++ b/backend/requirements.txt
+@@ -4,3 +4,4 @@ pydantic>=2.0
+ pydantic-settings>=2.0
+ supabase>=2.0
+ python-dotenv>=1.0
++python-multipart>=0.0.6
+diff --git a/backend/routers/__pycache__/admin_users.cpython-311.pyc b/backend/routers/__pycache__/admin_users.cpython-311.pyc
+new file mode 100644
+index 0000000..f6571ae
+Binary files /dev/null and b/backend/routers/__pycache__/admin_users.cpython-311.pyc differ
+diff --git a/backend/routers/__pycache__/admin_users.cpython-314.pyc b/backend/routers/__pycache__/admin_users.cpython-314.pyc
+new file mode 100644
+index 0000000..8ac9607
+Binary files /dev/null and b/backend/routers/__pycache__/admin_users.cpython-314.pyc differ
+diff --git a/backend/routers/__pycache__/demo_seeder.cpython-314.pyc b/backend/routers/__pycache__/demo_seeder.cpython-314.pyc
+new file mode 100644
+index 0000000..26d6bab
+Binary files /dev/null and b/backend/routers/__pycache__/demo_seeder.cpython-314.pyc differ
+diff --git a/backend/routers/admin_users.py b/backend/routers/admin_users.py
+new file mode 100644
+index 0000000..6379d68
+--- /dev/null
++++ b/backend/routers/admin_users.py
+@@ -0,0 +1,171 @@
++import csv
++import io
++from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
++from supabase import Client
++
++from core.database import get_admin_supabase
++from models.schemas import (
++    UserCreateRequest,
++    UserCreateResponse,
++    UserRole,
++    BulkUploadResult,
++    BulkUploadResponse,
++)
++
++router = APIRouter(prefix="/api/v1/admin", tags=["Admin ΓÇô User Management"])
++
++
++# ΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
++def _create_single_user(payload: UserCreateRequest, db: Client) -> UserCreateResponse:
++    """Shared logic for creating one user (auth + public table)."""
++
++    # 1 ΓÇö Create Auth user via Supabase Admin API
++    try:
++        auth_response = db.auth.admin.create_user(
++            {
++                "email": payload.email,
++                "password": payload.password,
++                "email_confirm": True,
++                "user_metadata": {
++                    "name": payload.name,
++                    "role": payload.role.value,
++                },
++            }
++        )
++    except Exception as e:
++        error_msg = str(e)
++        if "already been registered" in error_msg or "already exists" in error_msg:
++            return UserCreateResponse(
++                success=False,
++                message=f"User with email {payload.email} already exists.",
++            )
++        return UserCreateResponse(success=False, message=f"Auth error: {error_msg}")
++
++    user_id = auth_response.user.id
++
++    # 2 ΓÇö Insert into the correct public table
++    try:
++        if payload.role == UserRole.student:
++            db.table("students").insert(
++                {
++                    "id": user_id,
++                    "name": payload.name,
++                    "roll_number": payload.roll_number or "",
++                    "subject_major": payload.subject_major or "",
++                }
++            ).execute()
++        else:
++            db.table("faculties").insert(
++                {
++                    "id": user_id,
++                    "name": payload.name,
++                    "department": payload.department or "",
++                    "email": payload.email,
++                }
++            ).execute()
++
++    except Exception as e:
++        # Auth user was created but table insert failed ΓÇö clean up
++        try:
++            db.auth.admin.delete_user(user_id)
++        except Exception:
++            pass
++        return UserCreateResponse(
++            success=False,
++            message=f"Auth user created but table insert failed: {e}. Auth user rolled back.",
++        )
++
++    return UserCreateResponse(
++        success=True,
++        message=f"{payload.role.value.capitalize()} '{payload.name}' created successfully.",
++        user_id=user_id,
++    )
++
++
++# ΓöÇΓöÇ POST /api/v1/admin/users/create ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
++@router.post("/users/create", response_model=UserCreateResponse)
++def create_user(
++    payload: UserCreateRequest,
++    db: Client = Depends(get_admin_supabase),
++):
++    """Create a single Supabase Auth user and insert into the public table."""
++    result = _create_single_user(payload, db)
++    if not result.success:
++        raise HTTPException(status_code=400, detail=result.message)
++    return result
++
++
++# ΓöÇΓöÇ POST /api/v1/admin/users/bulk ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
++@router.post("/users/bulk", response_model=BulkUploadResponse)
++async def bulk_create_users(
++    role: UserRole = Query(..., description="Role for all users in the CSV"),
++    file: UploadFile = File(..., description="CSV file with user data"),
++    db: Client = Depends(get_admin_supabase),
++):
++    """Bulk-create users from a CSV file.
++
++    **CSV format for students:**
++    ```
++    name,email,password,roll_number,subject_major
++    ```
++
++    **CSV format for teachers:**
++    ```
++    name,email,password,department
++    ```
++    """
++
++    if not file.filename or not file.filename.endswith(".csv"):
++        raise HTTPException(status_code=400, detail="File must be a .csv")
++
++    contents = await file.read()
++    text = contents.decode("utf-8-sig")  # handles BOM from Excel
++    reader = csv.DictReader(io.StringIO(text))
++
++    results: list[BulkUploadResult] = []
++    succeeded = 0
++    failed = 0
++
++    for idx, row in enumerate(reader, start=1):
++        name = row.get("name", "").strip()
++        email = row.get("email", "").strip()
++        password = row.get("password", "").strip()
++
++        if not name or not email or not password:
++            results.append(
++                BulkUploadResult(
++                    row=idx, email=email or "(empty)",
++                    success=False, message="Missing required field (name/email/password).",
++                )
++            )
++            failed += 1
++            continue
++
++        payload = UserCreateRequest(
++            email=email,
++            password=password,
++            role=role,
++            name=name,
++            roll_number=row.get("roll_number", "").strip() if role == UserRole.student else None,
++            subject_major=row.get("subject_major", "").strip() if role == UserRole.student else None,
++            department=row.get("department", "").strip() if role == UserRole.teacher else None,
++        )
++
++        result = _create_single_user(payload, db)
++        results.append(
++            BulkUploadResult(row=idx, email=email, success=result.success, message=result.message)
++        )
++        if result.success:
++            succeeded += 1
++        else:
++            failed += 1
++
++    return BulkUploadResponse(
++        total=succeeded + failed,
++        succeeded=succeeded,
++        failed=failed,
++        results=results,
++    )
+diff --git a/project/add_student_email.sql b/project/add_student_email.sql
+new file mode 100644
+index 0000000..83abd7c
+--- /dev/null
++++ b/project/add_student_email.sql
+@@ -0,0 +1,22 @@
++-- ============================================================
++-- MIGRATION: Add email column to students table
++-- Run this in: Supabase Dashboard ΓåÆ SQL Editor
++-- ============================================================
++
++-- 1. Add the email column (nullable so it doesn't break existing rows immediately)
++ALTER TABLE public.students
++  ADD COLUMN IF NOT EXISTS email TEXT;
++
++-- 2. Backfill email for all existing students using their roll_number
++--    Formula: PUN-004 ΓåÆ student.pun004@college.edu
++UPDATE public.students
++SET email = 'student.' || LOWER(REPLACE(roll_number, '-', '')) || '@college.edu'
++WHERE email IS NULL AND roll_number IS NOT NULL AND roll_number != '';
++
++-- 3. (Optional) Once all rows are populated you can enforce NOT NULL:
++-- ALTER TABLE public.students ALTER COLUMN email SET NOT NULL;
++
++-- ============================================================
++-- VERIFICATION ΓÇô run this to confirm:
++-- SELECT id, name, roll_number, email FROM public.students LIMIT 10;
++-- ============================================================
+diff --git a/project/backfill_auth.mjs b/project/backfill_auth.mjs
+new file mode 100644
+index 0000000..8c2ffc7
+--- /dev/null
++++ b/project/backfill_auth.mjs
+@@ -0,0 +1,152 @@
++/**
++ * backfill_auth.mjs  (v2 ΓÇô fixed UUID handling)
++ * ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++ * PHASE 1 ΓÇô Cleanup: deletes any auth users whose email matches a student or
++ *           teacher but whose UUID does NOT match the public-table row (i.e.
++ *           the broken entries from the previous run).
++ * PHASE 2 ΓÇô Backfill: creates auth users using the EXISTING UUID from the
++ *           students / faculties table so auth.users.id == public table id.
++ *
++ * Students ΓåÆ email derived from roll number: PUN-004 ΓåÆ student.pun004@college.edu
++ * Teachers ΓåÆ email already stored in the faculties table
++ * Password ΓåÆ Smart@1234  (for every backfilled user)
++ *
++ * Usage:  node backfill_auth.mjs
++ * ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++ */
++
++import { createClient } from '@supabase/supabase-js';
++
++// ΓöÇΓöÇ Config ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++const SUPABASE_URL = 'https://ldjezkuwpstlyhegmnau.supabase.co';
++const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkamV6a3V3cHN0bHloZWdtbmF1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTUwNjQ2MCwiZXhwIjoyMDg3MDgyNDYwfQ.Z6G-I4zlSHVOX4OWcULb226xx6HWJidz6XawCWemGrc';
++const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkamV6a3V3cHN0bHloZWdtbmF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MDY0NjAsImV4cCI6MjA4NzA4MjQ2MH0.v2hJ3cqlmPTyoYplrCuPsyo333SsvzQru0ol2uQRjRM';
++const DEFAULT_PASSWORD = 'Smart@1234';
++
++// ΓöÇΓöÇ Clients ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
++    auth: { autoRefreshToken: false, persistSession: false },
++});
++const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
++
++// ΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++function rollToEmail(roll) {
++    return `student.${roll.toLowerCase().replace('-', '')}@college.edu`;
++}
++
++/**
++ * Creates an auth user using the EXISTING uuid from the public table.
++ * Passing `id` explicitly ensures auth.users.id == students/faculties.id.
++ */
++async function createAuthUser(uuid, email, name, role) {
++    try {
++        const { error } = await admin.auth.admin.createUser({
++            id: uuid,               // ΓåÉ use existing UUID, no mismatch
++            email,
++            password: DEFAULT_PASSWORD,
++            email_confirm: true,
++            user_metadata: { name, role },
++        });
++
++        if (error) {
++            if (
++                error.message?.includes('already been registered') ||
++                error.message?.includes('already exists') ||
++                error.message?.includes('User already registered') ||
++                error.status === 422
++            ) {
++                return { email, status: 'ΓÅ¡  Skipped (already exists)' };
++            }
++            return { email, status: `Γ¥î Error: ${error.message}` };
++        }
++
++        return { email, status: 'Γ£à Created' };
++    } catch (err) {
++        return { email, status: `Γ¥î Exception: ${err.message}` };
++    }
++}
++
++/**
++ * Deletes an auth user by email if their auth UUID does NOT match the
++ * expected public-table UUID (cleanup for the previous broken run).
++ */
++async function cleanupMismatchedAuthUser(expectedUuid, email) {
++    try {
++        // List all auth users and find by email
++        const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
++        if (error) return;
++
++        const authUser = data.users.find(u => u.email === email);
++        if (!authUser) return; // not created yet, nothing to clean
++
++        if (authUser.id !== expectedUuid) {
++            // This is a mismatched auth user ΓÇö delete it so we can recreate with correct UUID
++            await admin.auth.admin.deleteUser(authUser.id);
++            console.log(`  ≡ƒùæ  Cleaned stale auth user for ${email} (old UUID: ${authUser.id})`);
++        }
++    } catch (err) {
++        // Non-fatal
++    }
++}
++
++// ΓöÇΓöÇ Main ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++async function main() {
++    console.log('ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ');
++    console.log('   SMART APP ΓÇô Auth Backfill Script (v2)');
++    console.log('ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ\n');
++
++    // ΓöÇΓöÇ 1. Fetch all students & teachers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    console.log('≡ƒôÜ Fetching students...');
++    const { data: students, error: sErr } = await db
++        .from('students').select('id, name, roll_number, email');
++    if (sErr) { console.error('Failed to fetch students:', sErr.message); process.exit(1); }
++    console.log(`   Found ${students.length} students.\n`);
++
++    console.log('≡ƒæ¿ΓÇì≡ƒÅ½ Fetching teachers...');
++    const { data: faculties, error: fErr } = await db
++        .from('faculties').select('id, name, email');
++    if (fErr) { console.error('Failed to fetch faculties:', fErr.message); process.exit(1); }
++    console.log(`   Found ${faculties.length} teachers.\n`);
++
++    // ΓöÇΓöÇ 2. Cleanup mismatched auth users from previous run ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    console.log('≡ƒº╣ Phase 1: Cleaning up any stale/mismatched auth users...\n');
++    for (const student of students) {
++        const email = student.email || rollToEmail(student.roll_number);
++        await cleanupMismatchedAuthUser(student.id, email);
++    }
++    for (const teacher of faculties) {
++        if (teacher.email) await cleanupMismatchedAuthUser(teacher.id, teacher.email);
++    }
++    console.log('   Cleanup done.\n');
++
++    // ΓöÇΓöÇ 3. Create auth users with correct UUIDs ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++    console.log('∩┐╜ Phase 2: Creating auth accounts...\n');
++
++    for (const student of students) {
++        const email = student.email || rollToEmail(student.roll_number);
++        const result = await createAuthUser(student.id, email, student.name, 'student');
++        console.log(`  [Student] ${student.name.padEnd(30)} ${result.status}`);
++    }
++
++    console.log('');
++
++    for (const teacher of faculties) {
++        if (!teacher.email) {
++            console.log(`  [Teacher] ${teacher.name.padEnd(30)} ΓÜá  No email ΓÇô skipped`);
++            continue;
++        }
++        const result = await createAuthUser(teacher.id, teacher.email, teacher.name, 'teacher');
++        console.log(`  [Teacher] ${teacher.name.padEnd(30)} ${result.status}`);
++    }
++
++    console.log('\nΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ');
++    console.log('Γ£à Backfill complete!');
++    console.log(`   Default password for all users: ${DEFAULT_PASSWORD}`);
++    console.log('\n   Student login format:');
++    console.log('   Email:    student.pun001@college.edu  (replace 001 with roll number)');
++    console.log('   Password: Smart@1234');
++    console.log('\n   Teacher login: use their email from the faculties table + Smart@1234');
++    console.log('ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ\n');
++}
++
++main();
+diff --git a/project/backfill_output.txt b/project/backfill_output.txt
+new file mode 100644
+index 0000000..33c2779
+Binary files /dev/null and b/project/backfill_output.txt differ
+diff --git a/project/check_schema.mjs b/project/check_schema.mjs
+new file mode 100644
+index 0000000..5bde981
+--- /dev/null
++++ b/project/check_schema.mjs
+@@ -0,0 +1,27 @@
++import { createClient } from '@supabase/supabase-js';
++
++// Uses the correct active Supabase project
++const supabaseUrl = 'https://ldjezkuwpstlyhegmnau.supabase.co';
++const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkamV6a3V3cHN0bHloZWdtbmF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MDY0NjAsImV4cCI6MjA4NzA4MjQ2MH0.v2hJ3cqlmPTyoYplrCuPsyo333SsvzQru0ol2uQRjRM';
++
++const supabase = createClient(supabaseUrl, supabaseAnonKey);
++
++async function inspect() {
++    console.log('=== STUDENTS (first 3 rows) ===');
++    const { data: students, error: err1 } = await supabase.from('students').select('*').limit(3);
++    if (err1) console.error('Error:', err1.message);
++    else {
++        console.log('Columns:', Object.keys(students[0] || {}).join(', '));
++        console.log(JSON.stringify(students, null, 2));
++    }
++
++    console.log('\n=== FACULTIES (first 3 rows) ===');
++    const { data: faculties, error: err2 } = await supabase.from('faculties').select('*').limit(3);
++    if (err2) console.error('Error:', err2.message);
++    else {
++        console.log('Columns:', Object.keys(faculties[0] || {}).join(', '));
++        console.log(JSON.stringify(faculties, null, 2));
++    }
++}
++
++inspect();
+diff --git a/project/index.html b/project/index.html
+index 9964e8b..c3ab895 100644
+--- a/project/index.html
++++ b/project/index.html
+@@ -1,16 +1,23 @@
+ <!doctype html>
+ <html lang="en">
+-  <head>
+-    <meta charset="UTF-8" />
+-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-    <title>EduTrack Smart Curriculum Attendance</title>
+-    <meta property="og:image" content="https://bolt.new/static/og_default.png" />
+-    <meta name="twitter:card" content="summary_large_image" />
+-    <meta name="twitter:image" content="https://bolt.new/static/og_default.png" />
+-  </head>
+-  <body>
+-    <div id="root"></div>
+-    <script type="module" src="/src/main.tsx"></script>
+-  </body>
+-</html>
++
++<head>
++  <meta charset="UTF-8" />
++  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
++  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++  <meta http-equiv="Content-Security-Policy"
++    content="default-src 'self';
++             script-src 'self' 'unsafe-eval' 'unsafe-inline';
++             style-src  'self' 'unsafe-inline' https://fonts.googleapis.com;
++             font-src   'self' https://fonts.gstatic.com;
++             img-src    'self' data: blob:;
++             connect-src 'self' ws://localhost:* wss://localhost:* https://*.supabase.co wss://*.supabase.co http://localhost:8000;" />
++  <title>EduTrack Smart Curriculum Attendance</title>
++</head>
++
++<body>
++  <div id="root"></div>
++  <script type="module" src="/src/main.tsx"></script>
++</body>
++
++</html>
+\ No newline at end of file
+diff --git a/project/package-lock.json b/project/package-lock.json
+index d75c8b2..d434706 100644
+--- a/project/package-lock.json
++++ b/project/package-lock.json
+@@ -16,6 +16,7 @@
+         "react": "^18.3.1",
+         "react-dom": "^18.3.1",
+         "react-is": "^19.2.4",
++        "react-router-dom": "^7.13.1",
+         "recharts": "^3.7.0"
+       },
+       "devDependencies": {
+@@ -2280,6 +2281,19 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/cookie": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmjs.org/cookie/-/cookie-1.1.1.tgz",
++      "integrity": "sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=18"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
+     "node_modules/cross-spawn": {
+       "version": "7.0.6",
+       "resolved": "https://registry.npmjs.org/cross-spawn/-/cross-spawn-7.0.6.tgz",
+@@ -3677,6 +3691,44 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/react-router": {
++      "version": "7.13.1",
++      "resolved": "https://registry.npmjs.org/react-router/-/react-router-7.13.1.tgz",
++      "integrity": "sha512-td+xP4X2/6BJvZoX6xw++A2DdEi++YypA69bJUV5oVvqf6/9/9nNlD70YO1e9d3MyamJEBQFEzk6mbfDYbqrSA==",
++      "license": "MIT",
++      "dependencies": {
++        "cookie": "^1.0.1",
++        "set-cookie-parser": "^2.6.0"
++      },
++      "engines": {
++        "node": ">=20.0.0"
++      },
++      "peerDependencies": {
++        "react": ">=18",
++        "react-dom": ">=18"
++      },
++      "peerDependenciesMeta": {
++        "react-dom": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/react-router-dom": {
++      "version": "7.13.1",
++      "resolved": "https://registry.npmjs.org/react-router-dom/-/react-router-dom-7.13.1.tgz",
++      "integrity": "sha512-UJnV3Rxc5TgUPJt2KJpo1Jpy0OKQr0AjgbZzBFjaPJcFOb2Y8jA5H3LT8HUJAiRLlWrEXWHbF1Z4SCZaQjWDHw==",
++      "license": "MIT",
++      "dependencies": {
++        "react-router": "7.13.1"
++      },
++      "engines": {
++        "node": ">=20.0.0"
++      },
++      "peerDependencies": {
++        "react": ">=18",
++        "react-dom": ">=18"
++      }
++    },
+     "node_modules/read-cache": {
+       "version": "1.0.0",
+       "resolved": "https://registry.npmjs.org/read-cache/-/read-cache-1.0.0.tgz",
+@@ -3874,6 +3926,12 @@
+         "semver": "bin/semver.js"
+       }
+     },
++    "node_modules/set-cookie-parser": {
++      "version": "2.7.2",
++      "resolved": "https://registry.npmjs.org/set-cookie-parser/-/set-cookie-parser-2.7.2.tgz",
++      "integrity": "sha512-oeM1lpU/UvhTxw+g3cIfxXHyJRc/uidd3yK1P242gzHds0udQBYzs3y8j4gCCW+ZJ7ad0yctld8RYO+bdurlvw==",
++      "license": "MIT"
++    },
+     "node_modules/shebang-command": {
+       "version": "2.0.0",
+       "resolved": "https://registry.npmjs.org/shebang-command/-/shebang-command-2.0.0.tgz",
+diff --git a/project/package.json b/project/package.json
+index 970d07c..7ff2193 100644
+--- a/project/package.json
++++ b/project/package.json
+@@ -19,6 +19,7 @@
+     "react": "^18.3.1",
+     "react-dom": "^18.3.1",
+     "react-is": "^19.2.4",
++    "react-router-dom": "^7.13.1",
+     "recharts": "^3.7.0"
+   },
+   "devDependencies": {
+diff --git a/project/src/App.tsx b/project/src/App.tsx
+index fcd1854..007b2a6 100644
+--- a/project/src/App.tsx
++++ b/project/src/App.tsx
+@@ -1,85 +1,85 @@
+ import { useState } from 'react';
+-import { AuthProvider, useAuth } from './contexts/AuthContext';
++import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
++import { AuthProvider } from './contexts/AuthContext';
++import { ProtectedRoute } from './components/ProtectedRoute';
+ import { Layout } from './components/Layout';
++import { Login } from './views/auth/Login';
++
++// Student views
+ import { StudentHome } from './views/student/StudentHome';
+ import { QRScanner } from './views/student/QRScanner';
+ import { FaceEnrollment } from './views/student/FaceEnrollment';
+ import { StudentCurriculum } from './views/student/StudentCurriculum';
++
++// Teacher views
+ import { LiveClass } from './views/teacher/LiveClass';
+ import { TeacherAnalytics } from './views/teacher/TeacherAnalytics';
+ import { CurriculumManager } from './views/teacher/CurriculumManager';
++
++// Admin views
+ import { AdminDashboard } from './views/admin/AdminDashboard';
+ import { AttendanceHeatmap } from './views/admin/AttendanceHeatmap';
++import { SystemAdminPortal } from './views/admin/SystemAdminPortal';
++
++// Shared views
+ import { Schedule } from './views/shared/Schedule';
+ 
+-function AppContent() {
+-  const { currentUser, loading } = useAuth();
+-  const [activeView, setActiveView] = useState(() => {
+-    if (currentUser?.role === 'student') return 'home';
+-    if (currentUser?.role === 'teacher') return 'live';
+-    return 'dashboard';
+-  });
+-
+-  if (loading) {
+-    return (
+-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+-        <div className="text-center">
+-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+-          <p className="text-slate-600 text-lg">Loading EduTrack...</p>
+-        </div>
+-      </div>
+-    );
+-  }
++// ΓöÇΓöÇ Role Layouts ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++// Each layout uses the existing activeView + sidebar pattern internally
++
++function StudentLayout() {
++  const [activeView, setActiveView] = useState('home');
+ 
+   function renderView() {
+-    if (currentUser?.role === 'student') {
+-      switch (activeView) {
+-        case 'home':
+-          return <StudentHome onViewChange={setActiveView} />;
+-        case 'scan':
+-          return <QRScanner />;
+-        case 'face-enrollment':
+-          return <FaceEnrollment />;
+-        case 'curriculum':
+-          return <StudentCurriculum onViewChange={setActiveView} />;
+-        case 'schedule':
+-          return <Schedule onViewChange={setActiveView} />;
+-        default:
+-          return <StudentHome onViewChange={setActiveView} />;
+-      }
++    switch (activeView) {
++      case 'home': return <StudentHome onViewChange={setActiveView} />;
++      case 'scan': return <QRScanner />;
++      case 'face-enrollment': return <FaceEnrollment />;
++      case 'curriculum': return <StudentCurriculum onViewChange={setActiveView} />;
++      case 'schedule': return <Schedule onViewChange={setActiveView} />;
++      default: return <StudentHome onViewChange={setActiveView} />;
+     }
++  }
+ 
+-    if (currentUser?.role === 'teacher') {
+-      switch (activeView) {
+-        case 'live':
+-          return <LiveClass />;
+-        case 'analytics':
+-          return <TeacherAnalytics />;
+-        case 'curriculum-manager':
+-          return <CurriculumManager />;
+-        case 'schedule':
+-          return <Schedule />;
+-        default:
+-          return <LiveClass />;
+-      }
+-    }
++  return (
++    <Layout activeView={activeView} onViewChange={setActiveView}>
++      {renderView()}
++    </Layout>
++  );
++}
+ 
+-    if (currentUser?.role === 'admin') {
+-      switch (activeView) {
+-        case 'dashboard':
+-          return <AdminDashboard />;
+-        case 'heatmap':
+-          return <AttendanceHeatmap />;
+-        case 'students':
+-          return <AdminDashboard />;
+-        case 'schedule':
+-          return <Schedule />;
+-        default:
+-          return <AdminDashboard />;
+-      }
++function TeacherLayout() {
++  const [activeView, setActiveView] = useState('live');
++
++  function renderView() {
++    switch (activeView) {
++      case 'live': return <LiveClass />;
++      case 'analytics': return <TeacherAnalytics />;
++      case 'curriculum-manager': return <CurriculumManager />;
++      case 'schedule': return <Schedule />;
++      default: return <LiveClass />;
+     }
++  }
++
++  return (
++    <Layout activeView={activeView} onViewChange={setActiveView}>
++      {renderView()}
++    </Layout>
++  );
++}
+ 
+-    return <StudentHome />;
++function AdminLayout() {
++  const [activeView, setActiveView] = useState('dashboard');
++
++  function renderView() {
++    switch (activeView) {
++      case 'dashboard': return <AdminDashboard />;
++      case 'heatmap': return <AttendanceHeatmap />;
++      case 'students': return <AdminDashboard />;
++      case 'user-management': return <SystemAdminPortal />;
++      case 'schedule': return <Schedule />;
++      default: return <AdminDashboard />;
++    }
+   }
+ 
+   return (
+@@ -89,11 +89,47 @@ function AppContent() {
+   );
+ }
+ 
++// ΓöÇΓöÇ App ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
+ function App() {
+   return (
+-    <AuthProvider>
+-      <AppContent />
+-    </AuthProvider>
++    <BrowserRouter>
++      <AuthProvider>
++        <Routes>
++          <Route path="/login" element={<Login />} />
++
++          <Route
++            path="/student/*"
++            element={
++              <ProtectedRoute role="student">
++                <StudentLayout />
++              </ProtectedRoute>
++            }
++          />
++
++          <Route
++            path="/teacher/*"
++            element={
++              <ProtectedRoute role="teacher">
++                <TeacherLayout />
++              </ProtectedRoute>
++            }
++          />
++
++          <Route
++            path="/admin/*"
++            element={
++              <ProtectedRoute role="admin">
++                <AdminLayout />
++              </ProtectedRoute>
++            }
++          />
++
++          {/* Catch-all: redirect to login */}
++          <Route path="*" element={<Navigate to="/login" replace />} />
++        </Routes>
++      </AuthProvider>
++    </BrowserRouter>
+   );
+ }
+ 
+diff --git a/project/src/components/ProtectedRoute.tsx b/project/src/components/ProtectedRoute.tsx
+new file mode 100644
+index 0000000..96b530f
+--- /dev/null
++++ b/project/src/components/ProtectedRoute.tsx
+@@ -0,0 +1,41 @@
++import { ReactNode } from 'react';
++import { Navigate } from 'react-router-dom';
++import { useAuth } from '../contexts/AuthContext';
++
++interface ProtectedRouteProps {
++    children: ReactNode;
++    role: 'admin' | 'teacher' | 'student';
++}
++
++const roleRedirectMap = {
++    admin: '/admin',
++    teacher: '/teacher',
++    student: '/student',
++};
++
++export function ProtectedRoute({ children, role }: ProtectedRouteProps) {
++    const { currentUser, loading } = useAuth();
++
++    if (loading) {
++        return (
++            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
++                <div className="text-center">
++                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
++                    <p className="text-slate-600 text-lg">Loading EduTrack...</p>
++                </div>
++            </div>
++        );
++    }
++
++    // Not authenticated ΓÇö go to login
++    if (!currentUser) {
++        return <Navigate to="/login" replace />;
++    }
++
++    // Authenticated but wrong role ΓÇö redirect to their correct dashboard
++    if (currentUser.role !== role) {
++        return <Navigate to={roleRedirectMap[currentUser.role]} replace />;
++    }
++
++    return <>{children}</>;
++}
+diff --git a/project/src/components/Sidebar.tsx b/project/src/components/Sidebar.tsx
+index 9d995bf..c80c392 100644
+--- a/project/src/components/Sidebar.tsx
++++ b/project/src/components/Sidebar.tsx
+@@ -10,10 +10,11 @@ import {
+   Calendar,
+   GraduationCap,
+   User,
+-  ChevronDown
++  UserPlus,
++  LogOut,
+ } from 'lucide-react';
+ import { useAuth } from '../contexts/AuthContext';
+-import { useState } from 'react';
++import { useNavigate } from 'react-router-dom';
+ 
+ interface SidebarProps {
+   activeView: string;
+@@ -21,8 +22,8 @@ interface SidebarProps {
+ }
+ 
+ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+-  const { currentUser, allUsers, switchUser } = useAuth();
+-  const [showUserMenu, setShowUserMenu] = useState(false);
++  const { currentUser, signOut } = useAuth();
++  const navigate = useNavigate();
+ 
+   const studentMenu = [
+     { id: 'home', label: 'Progress', icon: LayoutDashboard },
+@@ -43,6 +44,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+     { id: 'heatmap', label: 'Heatmap', icon: Calendar },
+     { id: 'students', label: 'Students', icon: GraduationCap },
++    { id: 'user-management', label: 'User Management', icon: UserPlus },
+     { id: 'schedule', label: 'Schedule', icon: Calendar },
+   ];
+ 
+@@ -59,6 +61,11 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+ 
+   const bgGradient = currentUser ? roleColors[currentUser.role] : 'from-blue-500 to-cyan-500';
+ 
++  const handleLogout = async () => {
++    await signOut();
++    navigate('/login', { replace: true });
++  };
++
+   return (
+     <div className={`w-64 bg-gradient-to-b ${bgGradient} text-white h-screen flex flex-col fixed left-0 top-0 shadow-xl`}>
+       <div className="p-6 border-b border-white/20">
+@@ -72,48 +79,15 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+           </div>
+         </div>
+ 
+-        <div className="relative">
+-          <button
+-            onClick={() => setShowUserMenu(!showUserMenu)}
+-            className="w-full flex items-center gap-3 p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all backdrop-blur-sm"
+-          >
+-            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+-              <User className="w-5 h-5" />
+-            </div>
+-            <div className="flex-1 text-left text-sm">
+-              <p className="font-semibold truncate">{currentUser?.name}</p>
+-              <p className="text-xs text-white/70 capitalize">{currentUser?.role}</p>
+-            </div>
+-            <ChevronDown className={`w-4 h-4 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+-          </button>
+-
+-          {showUserMenu && (
+-            <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-xl overflow-hidden z-50 max-h-64 overflow-y-auto">
+-              {allUsers.map((user) => (
+-                <button
+-                  key={user.id}
+-                  onClick={() => {
+-                    switchUser(user.id);
+-                    setShowUserMenu(false);
+-                    onViewChange(user.role === 'student' ? 'home' : user.role === 'teacher' ? 'live' : 'dashboard');
+-                  }}
+-                  className={`w-full flex items-center gap-3 p-3 hover:bg-slate-100 transition-colors ${currentUser?.id === user.id ? 'bg-slate-50' : ''
+-                    }`}
+-                >
+-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${user.role === 'student' ? 'bg-blue-500' :
+-                    user.role === 'teacher' ? 'bg-teal-500' :
+-                      'bg-slate-600'
+-                    }`}>
+-                    <User className="w-4 h-4" />
+-                  </div>
+-                  <div className="flex-1 text-left text-sm">
+-                    <p className="font-medium text-slate-900">{user.name}</p>
+-                    <p className="text-xs text-slate-500 capitalize">{user.role}</p>
+-                  </div>
+-                </button>
+-              ))}
+-            </div>
+-          )}
++        {/* Current user info (static, no switcher) */}
++        <div className="flex items-center gap-3 p-3 bg-white/10 rounded-xl backdrop-blur-sm">
++          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
++            <User className="w-5 h-5" />
++          </div>
++          <div className="flex-1 text-left text-sm min-w-0">
++            <p className="font-semibold truncate">{currentUser?.name}</p>
++            <p className="text-xs text-white/70 capitalize">{currentUser?.role}</p>
++          </div>
+         </div>
+       </div>
+ 
+@@ -139,9 +113,13 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+       </nav>
+ 
+       <div className="p-4 border-t border-white/20">
+-        <p className="text-xs text-white/60 text-center">
+-          Demo Mode - Switch users above
+-        </p>
++        <button
++          onClick={handleLogout}
++          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-all"
++        >
++          <LogOut className="w-5 h-5" />
++          <span className="font-medium text-sm">Sign Out</span>
++        </button>
+       </div>
+     </div>
+   );
+diff --git a/project/src/contexts/AuthContext.tsx b/project/src/contexts/AuthContext.tsx
+index ae10125..62d33d6 100644
+--- a/project/src/contexts/AuthContext.tsx
++++ b/project/src/contexts/AuthContext.tsx
+@@ -3,89 +3,170 @@ import { supabase, Profile } from '../lib/supabase';
+ 
+ interface AuthContextType {
+   currentUser: Profile | null;
+-  allUsers: Profile[];
+-  switchUser: (userId: string) => void;
+   loading: boolean;
++  signIn: (email: string, password: string) => Promise<{ error?: string }>;
++  signOut: () => Promise<void>;
+ }
+ 
+ const AuthContext = createContext<AuthContextType | undefined>(undefined);
+ 
+ export function AuthProvider({ children }: { children: ReactNode }) {
+   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
+-  const [allUsers, setAllUsers] = useState<Profile[]>([]);
+   const [loading, setLoading] = useState(true);
+ 
++  // ΓöÇΓöÇ Role resolution ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
++  async function resolveRole(userId: string, userEmail: string): Promise<Profile | null> {
++    try {
++      // 1. Check admins
++      const { data: admin, error: adminErr } = await supabase
++        .from('admins')
++        .select('*')
++        .eq('id', userId)
++        .maybeSingle();
++
++      if (adminErr) console.warn('admins query error:', adminErr.message);
++
++      if (admin) {
++        return {
++          id: admin.id,
++          name: admin.name || 'Admin',
++          email: admin.email || userEmail,
++          role: 'admin',
++          department: 'Administration',
++          created_at: admin.created_at,
++        };
++      }
++
++      // 2. Check faculties
++      const { data: faculty, error: facErr } = await supabase
++        .from('faculties')
++        .select('*')
++        .eq('id', userId)
++        .maybeSingle();
++
++      if (facErr) console.warn('faculties query error:', facErr.message);
++
++      if (faculty) {
++        return {
++          id: faculty.id,
++          name: faculty.name || 'Teacher',
++          email: faculty.email || userEmail,
++          role: 'teacher',
++          department: faculty.department || 'General',
++          created_at: faculty.created_at,
++        };
++      }
++
++      // 3. Check students
++      const { data: student, error: stuErr } = await supabase
++        .from('students')
++        .select('*')
++        .eq('id', userId)
++        .maybeSingle();
++
++      if (stuErr) console.warn('students query error:', stuErr.message);
++
++      if (student) {
++        return {
++          id: student.id,
++          name: student.name || 'Student',
++          email: userEmail,
++          role: 'student',
++          department: student.subject_major || 'General',
++          semester: 1,
++          face_descriptor: student.face_descriptor,
++          created_at: student.created_at,
++        };
++      }
++    } catch (err) {
++      console.error('resolveRole error:', err);
++    }
++
++    // No matching profile in any table
++    return null;
++  }
++
++  // ΓöÇΓöÇ Session bootstrap ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
+   useEffect(() => {
+-    loadUsers();
++    let cancelled = false;
++
++    async function checkSession() {
++      try {
++        const { data: { session } } = await supabase.auth.getSession();
++        if (session?.user && !cancelled) {
++          const profile = await resolveRole(session.user.id, session.user.email || '');
++          if (!cancelled) setCurrentUser(profile);
++        }
++      } catch (err) {
++        console.error('Error getting session:', err);
++      } finally {
++        if (!cancelled) setLoading(false);
++      }
++    }
++
++    checkSession();
++
++    // Listen for auth state changes (logout, token refresh)
++    // NOTE: SIGNED_IN is handled directly in signIn() to avoid race conditions
++    const { data: { subscription } } = supabase.auth.onAuthStateChange(
++      async (event, _session) => {
++        if (event === 'SIGNED_OUT') {
++          setCurrentUser(null);
++        }
++      }
++    );
++
++    return () => {
++      cancelled = true;
++      subscription.unsubscribe();
++    };
+   }, []);
+ 
+-  async function loadUsers() {
++  // ΓöÇΓöÇ Auth methods ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
++  async function signIn(email: string, password: string): Promise<{ error?: string }> {
+     try {
+-      const { data: studentsData, error: studentsError } = await supabase
+-        .from('students')
+-        .select('*');
++      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+ 
+-      const { data: facultiesData, error: facultiesError } = await supabase
+-        .from('faculties')
+-        .select('*');
++      if (error) {
++        return { error: error.message };
++      }
+ 
+-      const { data: adminsData, error: adminsError } = await supabase
+-        .from('admins')
+-        .select('*');
+-
+-      if (studentsError) console.error('Error loading students:', studentsError);
+-      if (facultiesError) console.error('Error loading faculties:', facultiesError);
+-      if (adminsError) console.error('Error loading admins:', adminsError);
+-
+-      const students: Profile[] = (studentsData || []).map((s: any) => ({
+-        id: s.id,
+-        name: s.name || s.full_name || 'Unknown Student',
+-        role: 'student',
+-        department: s.department || 'General',
+-        semester: s.semester || 1,
+-        face_descriptor: s.face_descriptor,
+-        created_at: s.created_at || new Date().toISOString()
+-      }));
+-
+-      const faculties: Profile[] = (facultiesData || []).map((f: any) => ({
+-        id: f.id,
+-        name: f.name || f.full_name || 'Unknown Faculty',
+-        role: 'teacher',
+-        department: f.department || 'General',
+-        created_at: f.created_at || new Date().toISOString()
+-      }));
+-
+-      const admins: Profile[] = (adminsData || []).map((a: any) => ({
+-        id: a.id,
+-        name: a.name || a.full_name || 'Admin',
+-        role: 'admin',
+-        department: 'Administration',
+-        created_at: a.created_at || new Date().toISOString()
+-      }));
+-
+-      const allData = [...faculties, ...students, ...admins];
+-
+-      setAllUsers(allData);
+-      if (allData.length > 0) {
+-        const studentUser = allData.find(u => u.role === 'student');
+-        setCurrentUser(studentUser || allData[0]);
++      if (!data.user) {
++        return { error: 'Authentication failed. Please try again.' };
+       }
+-    } catch (error) {
+-      console.error('Error loading users:', error);
+-    } finally {
+-      setLoading(false);
++
++      // Resolve role immediately (don't rely on async onAuthStateChange)
++      const profile = await resolveRole(data.user.id, data.user.email || '');
++
++      if (!profile) {
++        // Auth succeeded but no profile row found ΓÇö sign them out
++        await supabase.auth.signOut();
++        return { error: 'No profile found for this account. Contact your administrator.' };
++      }
++
++      setCurrentUser(profile);
++      return {};
++    } catch (err) {
++      console.error('signIn error:', err);
++      return { error: 'An unexpected error occurred. Please try again.' };
+     }
+   }
+ 
+-  function switchUser(userId: string) {
+-    const user = allUsers.find(u => u.id === userId);
+-    if (user) {
+-      setCurrentUser(user);
++  async function signOut() {
++    try {
++      await supabase.auth.signOut();
++    } catch (err) {
++      console.error('signOut error:', err);
++    } finally {
++      setCurrentUser(null);
+     }
+   }
+ 
+   return (
+-    <AuthContext.Provider value={{ currentUser, allUsers, switchUser, loading }}>
++    <AuthContext.Provider value={{ currentUser, loading, signIn, signOut }}>
+       {children}
+     </AuthContext.Provider>
+   );
+diff --git a/project/src/lib/supabase.ts b/project/src/lib/supabase.ts
+index 569c433..bccabe8 100644
+--- a/project/src/lib/supabase.ts
++++ b/project/src/lib/supabase.ts
+@@ -12,6 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+ export type Profile = {
+   id: string;
+   name: string;
++  email?: string;
+   role: 'student' | 'teacher' | 'admin';
+   department: string;
+   semester?: number;
+diff --git a/project/src/views/admin/AttendanceHeatmap.tsx b/project/src/views/admin/AttendanceHeatmap.tsx
+index ae4987c..f592973 100644
+--- a/project/src/views/admin/AttendanceHeatmap.tsx
++++ b/project/src/views/admin/AttendanceHeatmap.tsx
+@@ -37,26 +37,41 @@ export function AttendanceHeatmap() {
+         .eq('day_of_week', selectedDay);
+ 
+       if (schedules) {
+-        const today = new Date();
+-        const dayOffset = selectedDay - today.getDay();
+-        const targetDate = new Date(today);
+-        targetDate.setDate(today.getDate() + dayOffset);
+-        const dateString = targetDate.toISOString().split('T')[0];
++        const { data: allStudents } = await supabase
++          .from('students')
++          .select('id');
++
++        const totalStudents = allStudents?.length || 0;
+ 
+         const heatmapPromises = schedules.map(async (schedule) => {
++          // Fetch ALL historical records for this subject (not just today's date)
+           const { data: attendance } = await supabase
+             .from('attendance_records')
+-            .select('*')
+-            .eq('subject_id', schedule.subject_id)
+-            .eq('class_date', dateString);
+-
+-          const { data: students } = await supabase
+-            .from('students')
+-            .select('id');
+-
+-          const totalStudents = students?.length || 0;
+-          const presentStudents = attendance?.filter(a => a.status === 'present').length || 0;
+-          const occupancyRate = totalStudents > 0 ? Math.round((presentStudents / totalStudents) * 100) : 0;
++            .select('student_id, class_date, status')
++            .eq('subject_id', schedule.subject_id);
++
++          let occupancyRate = 0;
++
++          if (attendance && attendance.length > 0) {
++            // Group by unique class dates to get per-session attendance
++            const dateMap = new Map<string, { present: number; total: number }>();
++            for (const record of attendance) {
++              if (!dateMap.has(record.class_date)) {
++                dateMap.set(record.class_date, { present: 0, total: 0 });
++              }
++              const entry = dateMap.get(record.class_date)!;
++              entry.total += 1;
++              if (record.status === 'present') entry.present += 1;
++            }
++
++            // Average the per-session occupancy rates across all dates
++            const sessionRates = Array.from(dateMap.values()).map(
++              (s) => (s.total > 0 ? (s.present / s.total) * 100 : 0)
++            );
++            occupancyRate = Math.round(
++              sessionRates.reduce((acc, r) => acc + r, 0) / sessionRates.length
++            );
++          }
+ 
+           return {
+             subject: schedule.subjects.name,
+@@ -116,8 +131,8 @@ export function AttendanceHeatmap() {
+               key={day.id}
+               onClick={() => setSelectedDay(day.id)}
+               className={`px-6 py-3 rounded-xl font-semibold transition-all ${selectedDay === day.id
+-                  ? 'bg-slate-900 text-white shadow-lg'
+-                  : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-300'
++                ? 'bg-slate-900 text-white shadow-lg'
++                : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-300'
+                 }`}
+             >
+               {day.name}
+diff --git a/project/src/views/admin/SystemAdminPortal.tsx b/project/src/views/admin/SystemAdminPortal.tsx
+new file mode 100644
+index 0000000..212b63f
+--- /dev/null
++++ b/project/src/views/admin/SystemAdminPortal.tsx
+@@ -0,0 +1,500 @@
++import { useState, useRef, useCallback } from 'react';
++import {
++    UserPlus,
++    Upload,
++    CheckCircle,
++    XCircle,
++    FileSpreadsheet,
++    Loader2,
++    AlertTriangle,
++    Users,
++    GraduationCap,
++    Briefcase,
++    X,
++} from 'lucide-react';
++
++const API_BASE = 'http://localhost:8000';
++
++type Role = 'student' | 'teacher';
++
++interface FormData {
++    name: string;
++    email: string;
++    password: string;
++    roll_number: string;
++    subject_major: string;
++    department: string;
++}
++
++interface BulkResult {
++    row: number;
++    email: string;
++    success: boolean;
++    message: string;
++}
++
++interface BulkResponse {
++    total: number;
++    succeeded: number;
++    failed: number;
++    results: BulkResult[];
++}
++
++const initialForm: FormData = {
++    name: '',
++    email: '',
++    password: '',
++    roll_number: '',
++    subject_major: '',
++    department: '',
++};
++
++export function SystemAdminPortal() {
++    const [activeTab, setActiveTab] = useState<'single' | 'bulk'>('single');
++    const [role, setRole] = useState<Role>('student');
++    const [form, setForm] = useState<FormData>(initialForm);
++    const [loading, setLoading] = useState(false);
++    const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
++
++    // Bulk upload state
++    const [dragActive, setDragActive] = useState(false);
++    const [selectedFile, setSelectedFile] = useState<File | null>(null);
++    const [bulkLoading, setBulkLoading] = useState(false);
++    const [bulkResult, setBulkResult] = useState<BulkResponse | null>(null);
++    const fileInputRef = useRef<HTMLInputElement>(null);
++
++    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
++        setForm({ ...form, [e.target.name]: e.target.value });
++    };
++
++    // ΓöÇΓöÇ Single User Creation ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
++    const handleSubmit = async (e: React.FormEvent) => {
++        e.preventDefault();
++        setLoading(true);
++        setResult(null);
++
++        const payload: any = {
++            email: form.email,
++            password: form.password,
++            role,
++            name: form.name,
++        };
++
++        if (role === 'student') {
++            payload.roll_number = form.roll_number;
++            payload.subject_major = form.subject_major;
++        } else {
++            payload.department = form.department;
++        }
++
++        try {
++            const res = await fetch(`${API_BASE}/api/v1/admin/users/create`, {
++                method: 'POST',
++                headers: { 'Content-Type': 'application/json' },
++                body: JSON.stringify(payload),
++            });
++
++            const data = await res.json();
++
++            if (res.ok) {
++                setResult({ success: true, message: data.message });
++                setForm(initialForm);
++            } else {
++                setResult({ success: false, message: data.detail || 'Creation failed.' });
++            }
++        } catch (err) {
++            setResult({ success: false, message: 'Network error ΓÇö is the backend running?' });
++        } finally {
++            setLoading(false);
++        }
++    };
++
++    // ΓöÇΓöÇ Bulk CSV Upload ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
++    const handleDrag = useCallback((e: React.DragEvent) => {
++        e.preventDefault();
++        e.stopPropagation();
++        if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
++        else if (e.type === 'dragleave') setDragActive(false);
++    }, []);
++
++    const handleDrop = useCallback((e: React.DragEvent) => {
++        e.preventDefault();
++        e.stopPropagation();
++        setDragActive(false);
++        if (e.dataTransfer.files?.[0]) {
++            setSelectedFile(e.dataTransfer.files[0]);
++            setBulkResult(null);
++        }
++    }, []);
++
++    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
++        if (e.target.files?.[0]) {
++            setSelectedFile(e.target.files[0]);
++            setBulkResult(null);
++        }
++    };
++
++    const handleBulkUpload = async () => {
++        if (!selectedFile) return;
++        setBulkLoading(true);
++        setBulkResult(null);
++
++        const formData = new FormData();
++        formData.append('file', selectedFile);
++
++        try {
++            const res = await fetch(`${API_BASE}/api/v1/admin/users/bulk?role=${role}`, {
++                method: 'POST',
++                body: formData,
++            });
++            const data: BulkResponse = await res.json();
++            setBulkResult(data);
++        } catch {
++            setBulkResult({ total: 0, succeeded: 0, failed: 0, results: [{ row: 0, email: '', success: false, message: 'Network error ΓÇö is the backend running?' }] });
++        } finally {
++            setBulkLoading(false);
++        }
++    };
++
++    // ΓöÇΓöÇ Render ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
++    return (
++        <div className="max-w-4xl mx-auto">
++            {/* Header */}
++            <div className="mb-8">
++                <h1 className="text-3xl font-bold text-slate-900 mb-2 flex items-center gap-3">
++                    <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl text-white shadow-lg shadow-violet-200">
++                        <Users className="w-7 h-7" />
++                    </div>
++                    User Management
++                </h1>
++                <p className="text-slate-500">Onboard students and teachers to the EduTrack platform</p>
++            </div>
++
++            {/* Role Toggle */}
++            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-2 mb-6 inline-flex gap-1">
++                <button
++                    onClick={() => { setRole('student'); setResult(null); setBulkResult(null); }}
++                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all ${role === 'student'
++                        ? 'bg-blue-500 text-white shadow-md shadow-blue-200'
++                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
++                        }`}
++                >
++                    <GraduationCap className="w-4 h-4" />
++                    Student
++                </button>
++                <button
++                    onClick={() => { setRole('teacher'); setResult(null); setBulkResult(null); }}
++                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all ${role === 'teacher'
++                        ? 'bg-teal-500 text-white shadow-md shadow-teal-200'
++                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
++                        }`}
++                >
++                    <Briefcase className="w-4 h-4" />
++                    Teacher
++                </button>
++            </div>
++
++            {/* Tab Switcher */}
++            <div className="flex gap-4 mb-6">
++                <button
++                    onClick={() => setActiveTab('single')}
++                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${activeTab === 'single'
++                        ? 'border-slate-300 bg-white text-slate-900 shadow-sm'
++                        : 'border-transparent text-slate-400 hover:text-slate-600'
++                        }`}
++                >
++                    <UserPlus className="w-4 h-4" />
++                    Create Single User
++                </button>
++                <button
++                    onClick={() => setActiveTab('bulk')}
++                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${activeTab === 'bulk'
++                        ? 'border-slate-300 bg-white text-slate-900 shadow-sm'
++                        : 'border-transparent text-slate-400 hover:text-slate-600'
++                        }`}
++                >
++                    <Upload className="w-4 h-4" />
++                    Bulk CSV Upload
++                </button>
++            </div>
++
++            {/* ΓöÇΓöÇ Single User Form ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
++            {activeTab === 'single' && (
++                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
++                    <h2 className="text-lg font-semibold text-slate-800 mb-6">
++                        New {role === 'student' ? 'Student' : 'Teacher'} Account
++                    </h2>
++
++                    <form onSubmit={handleSubmit} className="space-y-5">
++                        {/* Name */}
++                        <div>
++                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
++                            <input
++                                id="user-name"
++                                type="text"
++                                name="name"
++                                value={form.name}
++                                onChange={handleChange}
++                                required
++                                placeholder="e.g. Arjun Singh"
++                                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
++                            />
++                        </div>
++
++                        {/* Email */}
++                        <div>
++                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
++                            <input
++                                id="user-email"
++                                type="email"
++                                name="email"
++                                value={form.email}
++                                onChange={handleChange}
++                                required
++                                placeholder="e.g. arjun@university.edu"
++                                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
++                            />
++                        </div>
++
++                        {/* Password */}
++                        <div>
++                            <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
++                            <input
++                                id="user-password"
++                                type="password"
++                                name="password"
++                                value={form.password}
++                                onChange={handleChange}
++                                required
++                                minLength={6}
++                                placeholder="Minimum 6 characters"
++                                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
++                            />
++                        </div>
++
++                        {/* Role-specific fields */}
++                        {role === 'student' ? (
++                            <>
++                                <div className="grid grid-cols-2 gap-4">
++                                    <div>
++                                        <label className="block text-sm font-medium text-slate-700 mb-1.5">Roll Number</label>
++                                        <input
++                                            id="user-roll-number"
++                                            type="text"
++                                            name="roll_number"
++                                            value={form.roll_number}
++                                            onChange={handleChange}
++                                            placeholder="e.g. PUN-071"
++                                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
++                                        />
++                                    </div>
++                                    <div>
++                                        <label className="block text-sm font-medium text-slate-700 mb-1.5">Subject Major</label>
++                                        <input
++                                            id="user-subject-major"
++                                            type="text"
++                                            name="subject_major"
++                                            value={form.subject_major}
++                                            onChange={handleChange}
++                                            placeholder="e.g. Computer Science"
++                                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
++                                        />
++                                    </div>
++                                </div>
++                            </>
++                        ) : (
++                            <div>
++                                <label className="block text-sm font-medium text-slate-700 mb-1.5">Department</label>
++                                <input
++                                    id="user-department"
++                                    type="text"
++                                    name="department"
++                                    value={form.department}
++                                    onChange={handleChange}
++                                    placeholder="e.g. Computer Science"
++                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
++                                />
++                            </div>
++                        )}
++
++                        {/* Submit Button */}
++                        <button
++                            type="submit"
++                            disabled={loading}
++                            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white shadow-lg transition-all ${role === 'student'
++                                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-blue-200'
++                                : 'bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 shadow-teal-200'
++                                } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
++                        >
++                            {loading ? (
++                                <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
++                            ) : (
++                                <><UserPlus className="w-4 h-4" /> Create {role === 'student' ? 'Student' : 'Teacher'}</>
++                            )}
++                        </button>
++                    </form>
++
++                    {/* Result banner */}
++                    {result && (
++                        <div className={`mt-6 flex items-start gap-3 p-4 rounded-xl border ${result.success
++                            ? 'bg-green-50 border-green-200 text-green-800'
++                            : 'bg-red-50 border-red-200 text-red-800'
++                            }`}>
++                            {result.success
++                                ? <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
++                                : <XCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />}
++                            <p className="text-sm">{result.message}</p>
++                        </div>
++                    )}
++                </div>
++            )}
++
++            {/* ΓöÇΓöÇ Bulk CSV Upload ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
++            {activeTab === 'bulk' && (
++                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
++                    <h2 className="text-lg font-semibold text-slate-800 mb-2">
++                        Bulk Upload {role === 'student' ? 'Students' : 'Teachers'}
++                    </h2>
++                    <p className="text-sm text-slate-500 mb-6">
++                        Upload a CSV file to create multiple accounts at once.
++                    </p>
++
++                    {/* CSV format guide */}
++                    <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-200">
++                        <p className="text-xs font-semibold text-slate-600 mb-2 flex items-center gap-1.5">
++                            <FileSpreadsheet className="w-3.5 h-3.5" />
++                            Expected CSV columns
++                        </p>
++                        <code className="text-xs text-slate-700 font-mono">
++                            {role === 'student'
++                                ? 'name, email, password, roll_number, subject_major'
++                                : 'name, email, password, department'}
++                        </code>
++                    </div>
++
++                    {/* Drop zone */}
++                    <div
++                        onDragEnter={handleDrag}
++                        onDragLeave={handleDrag}
++                        onDragOver={handleDrag}
++                        onDrop={handleDrop}
++                        onClick={() => fileInputRef.current?.click()}
++                        className={`relative cursor-pointer border-2 border-dashed rounded-2xl p-10 text-center transition-all ${dragActive
++                            ? 'border-blue-400 bg-blue-50/50'
++                            : selectedFile
++                                ? 'border-green-300 bg-green-50/30'
++                                : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
++                            }`}
++                    >
++                        <input
++                            ref={fileInputRef}
++                            type="file"
++                            accept=".csv"
++                            onChange={handleFileSelect}
++                            className="hidden"
++                        />
++
++                        {selectedFile ? (
++                            <div className="flex flex-col items-center gap-3">
++                                <div className="p-3 bg-green-100 rounded-xl">
++                                    <FileSpreadsheet className="w-8 h-8 text-green-600" />
++                                </div>
++                                <div>
++                                    <p className="text-sm font-medium text-slate-900">{selectedFile.name}</p>
++                                    <p className="text-xs text-slate-500 mt-0.5">
++                                        {(selectedFile.size / 1024).toFixed(1)} KB ΓÇö click or drop another to replace
++                                    </p>
++                                </div>
++                                <button
++                                    onClick={(e) => { e.stopPropagation(); setSelectedFile(null); setBulkResult(null); }}
++                                    className="text-xs text-red-500 hover:text-red-600 flex items-center gap-1"
++                                >
++                                    <X className="w-3 h-3" /> Remove
++                                </button>
++                            </div>
++                        ) : (
++                            <div className="flex flex-col items-center gap-3">
++                                <div className="p-3 bg-slate-100 rounded-xl">
++                                    <Upload className="w-8 h-8 text-slate-400" />
++                                </div>
++                                <div>
++                                    <p className="text-sm font-medium text-slate-700">Drag & drop your CSV file here</p>
++                                    <p className="text-xs text-slate-400 mt-1">or click to browse</p>
++                                </div>
++                            </div>
++                        )}
++                    </div>
++
++                    {/* Upload button */}
++                    {selectedFile && !bulkResult && (
++                        <button
++                            onClick={handleBulkUpload}
++                            disabled={bulkLoading}
++                            className={`mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white shadow-lg transition-all ${role === 'student'
++                                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 shadow-blue-200'
++                                : 'bg-gradient-to-r from-teal-500 to-emerald-500 shadow-teal-200'
++                                } ${bulkLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
++                        >
++                            {bulkLoading
++                                ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
++                                : <><Upload className="w-4 h-4" /> Upload & Create Users</>}
++                        </button>
++                    )}
++
++                    {/* Bulk results */}
++                    {bulkResult && (
++                        <div className="mt-6 space-y-4">
++                            {/* Summary bar */}
++                            <div className="grid grid-cols-3 gap-3">
++                                <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-200">
++                                    <p className="text-2xl font-bold text-slate-800">{bulkResult.total}</p>
++                                    <p className="text-xs text-slate-500 mt-1">Total</p>
++                                </div>
++                                <div className="bg-green-50 rounded-xl p-4 text-center border border-green-200">
++                                    <p className="text-2xl font-bold text-green-600">{bulkResult.succeeded}</p>
++                                    <p className="text-xs text-green-600 mt-1">Succeeded</p>
++                                </div>
++                                <div className={`rounded-xl p-4 text-center border ${bulkResult.failed > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
++                                    <p className={`text-2xl font-bold ${bulkResult.failed > 0 ? 'text-red-600' : 'text-slate-400'}`}>{bulkResult.failed}</p>
++                                    <p className={`text-xs mt-1 ${bulkResult.failed > 0 ? 'text-red-600' : 'text-slate-400'}`}>Failed</p>
++                                </div>
++                            </div>
++
++                            {/* Detail rows */}
++                            <div className="border border-slate-200 rounded-xl overflow-hidden">
++                                <div className="max-h-64 overflow-y-auto">
++                                    {bulkResult.results.map((r, i) => (
++                                        <div
++                                            key={i}
++                                            className={`flex items-center gap-3 px-4 py-3 text-sm border-b last:border-b-0 ${r.success ? 'bg-white' : 'bg-red-50/30'}`}
++                                        >
++                                            {r.success
++                                                ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
++                                                : <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />}
++                                            <span className="font-medium text-slate-700 w-16 shrink-0">Row {r.row}</span>
++                                            <span className="text-slate-500 truncate flex-1">{r.email}</span>
++                                            <span className={`text-xs ${r.success ? 'text-green-600' : 'text-red-600'}`}>
++                                                {r.message}
++                                            </span>
++                                        </div>
++                                    ))}
++                                </div>
++                            </div>
++
++                            {/* Upload another */}
++                            <button
++                                onClick={() => { setSelectedFile(null); setBulkResult(null); }}
++                                className="text-sm text-slate-500 hover:text-slate-700 underline"
++                            >
++                                Upload another file
++                            </button>
++                        </div>
++                    )}
++                </div>
++            )}
++        </div>
++    );
++}
+diff --git a/project/src/views/auth/Login.tsx b/project/src/views/auth/Login.tsx
+new file mode 100644
+index 0000000..b1f87e5
+--- /dev/null
++++ b/project/src/views/auth/Login.tsx
+@@ -0,0 +1,159 @@
++import { useState, useEffect } from 'react';
++import { useNavigate } from 'react-router-dom';
++import { useAuth } from '../../contexts/AuthContext';
++import { GraduationCap, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
++
++const roleRedirectMap: Record<string, string> = {
++    admin: '/admin',
++    teacher: '/teacher',
++    student: '/student',
++};
++
++export function Login() {
++    const navigate = useNavigate();
++    const { currentUser, loading: authLoading } = useAuth();
++    const [email, setEmail] = useState('');
++    const [password, setPassword] = useState('');
++    const [showPassword, setShowPassword] = useState(false);
++    const [loading, setLoading] = useState(false);
++    const [error, setError] = useState('');
++
++    // Access signIn separately so it doesn't trigger re-renders
++    const auth = useAuth();
++
++    // If already authenticated, redirect to the correct dashboard
++    useEffect(() => {
++        if (currentUser) {
++            navigate(roleRedirectMap[currentUser.role] || '/login', { replace: true });
++        }
++    }, [currentUser, navigate]);
++
++    // Show loading ONLY while checking existing session on first mount
++    if (authLoading) {
++        return (
++            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
++                <div className="text-center">
++                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
++                    <p className="text-slate-400 text-lg">Loading EduTrack...</p>
++                </div>
++            </div>
++        );
++    }
++
++    const handleSubmit = async (e: React.FormEvent) => {
++        e.preventDefault();
++        setLoading(true);
++        setError('');
++
++        try {
++            const result = await auth.signIn(email, password);
++
++            if (result.error) {
++                setError(result.error);
++                setLoading(false); // ΓåÉ stop the spinner immediately on error
++                return;
++            }
++
++            // Success ΓÇö redirect handled by the useEffect above.
++            // Safety net: stop spinning if redirect somehow takes too long.
++            setTimeout(() => { setLoading(false); }, 3000);
++
++        } catch (err: unknown) {
++            const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
++            setError(message);
++            setLoading(false);
++        }
++    };
++
++    return (
++        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
++            {/* Background pattern */}
++            <div className="absolute inset-0 overflow-hidden pointer-events-none">
++                <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl" />
++                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl" />
++            </div>
++
++            <div className="relative w-full max-w-md">
++                {/* Logo */}
++                <div className="text-center mb-8">
++                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl shadow-lg shadow-blue-500/25 mb-4">
++                        <GraduationCap className="w-8 h-8 text-white" />
++                    </div>
++                    <h1 className="text-3xl font-bold text-white">EduTrack</h1>
++                    <p className="text-slate-400 mt-1">Smart Campus Attendance System</p>
++                </div>
++
++                {/* Login card */}
++                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
++                    <h2 className="text-xl font-semibold text-white mb-6">Sign in to your account</h2>
++
++                    <form onSubmit={handleSubmit} className="space-y-5">
++                        <div>
++                            <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
++                            <input
++                                id="login-email"
++                                type="email"
++                                value={email}
++                                onChange={(e) => setEmail(e.target.value)}
++                                required
++                                placeholder="you@university.edu"
++                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-all"
++                            />
++                        </div>
++
++                        <div>
++                            <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
++                            <div className="relative">
++                                <input
++                                    id="login-password"
++                                    type={showPassword ? 'text' : 'password'}
++                                    value={password}
++                                    onChange={(e) => setPassword(e.target.value)}
++                                    required
++                                    minLength={6}
++                                    placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó"
++                                    className="w-full px-4 py-3 pr-12 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-all"
++                                />
++                                <button
++                                    type="button"
++                                    onClick={() => setShowPassword(prev => !prev)}
++                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-200 transition-colors"
++                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
++                                >
++                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
++                                </button>
++                            </div>
++                        </div>
++
++
++                        {error && (
++                            <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
++                                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
++                                <p className="text-sm text-red-300">{error}</p>
++                            </div>
++                        )}
++
++                        <button
++                            type="submit"
++                            disabled={loading}
++                            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white transition-all ${loading
++                                ? 'bg-blue-500/50 cursor-not-allowed'
++                                : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg shadow-blue-500/25'
++                                }`}
++                        >
++                            {loading ? (
++                                <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</>
++                            ) : (
++                                'Sign In'
++                            )}
++                        </button>
++                    </form>
++
++                    <p className="text-xs text-slate-500 text-center mt-6">
++                        Accounts are provisioned by your administrator.
++                    </p>
++                </div>
++            </div>
++        </div>
++    );
++}
