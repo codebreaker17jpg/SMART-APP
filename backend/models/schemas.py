@@ -107,3 +107,43 @@ class HealthResponse(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+# ── Admin User Management ─────────────────────────────────────────────
+
+class UserRole(str, Enum):
+    student = "student"
+    teacher = "teacher"
+
+
+class UserCreateRequest(BaseModel):
+    """Payload for POST /admin/users/create."""
+    email: str = Field(..., description="User email address")
+    password: str = Field(..., min_length=6, description="Minimum 6 characters")
+    role: UserRole
+    name: str = Field(..., min_length=1)
+    # Student-specific
+    roll_number: Optional[str] = None
+    subject_major: Optional[str] = None
+    # Teacher-specific
+    department: Optional[str] = None
+
+
+class UserCreateResponse(BaseModel):
+    success: bool
+    message: str
+    user_id: Optional[str] = None
+
+
+class BulkUploadResult(BaseModel):
+    row: int
+    email: str
+    success: bool
+    message: str
+
+
+class BulkUploadResponse(BaseModel):
+    total: int
+    succeeded: int
+    failed: int
+    results: list[BulkUploadResult]

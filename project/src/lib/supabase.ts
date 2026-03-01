@@ -12,6 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export type Profile = {
   id: string;
   name: string;
+  email?: string;
   role: 'student' | 'teacher' | 'admin';
   department: string;
   semester?: number;

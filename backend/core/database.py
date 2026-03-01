@@ -26,3 +26,29 @@ def get_supabase() -> Client:
             ...
     """
     return _init_supabase()
+
+
+# ── Admin client (service-role key) ───────────────────────────────────
+
+_admin_client: Client | None = None
+
+
+def _init_admin_supabase() -> Client:
+    """Lazily initialise the admin Supabase client (service-role key)."""
+    global _admin_client
+    if _admin_client is None:
+        settings = get_settings()
+        _admin_client = create_client(
+            settings.SUPABASE_URL,
+            settings.SUPABASE_SERVICE_ROLE_KEY,
+        )
+    return _admin_client
+
+
+def get_admin_supabase() -> Client:
+    """FastAPI dependency – returns the admin Supabase client.
+
+    This client uses the service-role key and can call
+    supabase.auth.admin.create_user() and bypass RLS.
+    """
+    return _init_admin_supabase()

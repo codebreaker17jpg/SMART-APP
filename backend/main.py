@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import get_settings
-from routers import attendance, curriculum, ai_features
+from routers import attendance, curriculum, ai_features, admin_users
 from models.schemas import HealthResponse
 
 # ── Bootstrap ─────────────────────────────────────────────────────────
@@ -32,6 +32,7 @@ app.add_middleware(
 app.include_router(attendance.router)
 app.include_router(curriculum.router)
 app.include_router(ai_features.router)
+app.include_router(admin_users.router)
 
 # ── Root / Health ─────────────────────────────────────────────────────
 

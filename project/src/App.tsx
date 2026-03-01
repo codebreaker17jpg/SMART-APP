@@ -1,85 +1,44 @@
 import { useState } from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
+import { Login } from './views/auth/Login';
+
+// Student views
 import { StudentHome } from './views/student/StudentHome';
 import { QRScanner } from './views/student/QRScanner';
 import { FaceEnrollment } from './views/student/FaceEnrollment';
 import { StudentCurriculum } from './views/student/StudentCurriculum';
+
+// Teacher views
 import { LiveClass } from './views/teacher/LiveClass';
 import { TeacherAnalytics } from './views/teacher/TeacherAnalytics';
 import { CurriculumManager } from './views/teacher/CurriculumManager';
+
+// Admin views
 import { AdminDashboard } from './views/admin/AdminDashboard';
 import { AttendanceHeatmap } from './views/admin/AttendanceHeatmap';
+import { SystemAdminPortal } from './views/admin/SystemAdminPortal';
+
+// Shared views
 import { Schedule } from './views/shared/Schedule';
 
-function AppContent() {
-  const { currentUser, loading } = useAuth();
-  const [activeView, setActiveView] = useState(() => {
-    if (currentUser?.role === 'student') return 'home';
-    if (currentUser?.role === 'teacher') return 'live';
-    return 'dashboard';
-  });
+// ── Role Layouts ─────────────────────────────────────────────────────
+// Each layout uses the existing activeView + sidebar pattern internally
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600 text-lg">Loading EduTrack...</p>
-        </div>
-      </div>
-    );
-  }
+function StudentLayout() {
+  const [activeView, setActiveView] = useState('home');
 
   function renderView() {
-    if (currentUser?.role === 'student') {
-      switch (activeView) {
-        case 'home':
-          return <StudentHome onViewChange={setActiveView} />;
-        case 'scan':
-          return <QRScanner />;
-        case 'face-enrollment':
-          return <FaceEnrollment />;
-        case 'curriculum':
-          return <StudentCurriculum onViewChange={setActiveView} />;
-        case 'schedule':
-          return <Schedule onViewChange={setActiveView} />;
-        default:
-          return <StudentHome onViewChange={setActiveView} />;
-      }
+    switch (activeView) {
+      case 'home': return <StudentHome onViewChange={setActiveView} />;
+      case 'scan': return <QRScanner />;
+      case 'face-enrollment': return <FaceEnrollment />;
+      case 'curriculum': return <StudentCurriculum onViewChange={setActiveView} />;
+      case 'schedule': return <Schedule onViewChange={setActiveView} />;
+      default: return <StudentHome onViewChange={setActiveView} />;
     }
-
-    if (currentUser?.role === 'teacher') {
-      switch (activeView) {
-        case 'live':
-          return <LiveClass />;
-        case 'analytics':
-          return <TeacherAnalytics />;
-        case 'curriculum-manager':
-          return <CurriculumManager />;
-        case 'schedule':
-          return <Schedule />;
-        default:
-          return <LiveClass />;
-      }
-    }
-
-    if (currentUser?.role === 'admin') {
-      switch (activeView) {
-        case 'dashboard':
-          return <AdminDashboard />;
-        case 'heatmap':
-          return <AttendanceHeatmap />;
-        case 'students':
-          return <AdminDashboard />;
-        case 'schedule':
-          return <Schedule />;
-        default:
-          return <AdminDashboard />;
-      }
-    }
-
-    return <StudentHome />;
   }
 
   return (
@@ -89,11 +48,88 @@ function AppContent() {
   );
 }
 
+function TeacherLayout() {
+  const [activeView, setActiveView] = useState('live');
+
+  function renderView() {
+    switch (activeView) {
+      case 'live': return <LiveClass />;
+      case 'analytics': return <TeacherAnalytics />;
+      case 'curriculum-manager': return <CurriculumManager />;
+      case 'schedule': return <Schedule />;
+      default: return <LiveClass />;
+    }
+  }
+
+  return (
+    <Layout activeView={activeView} onViewChange={setActiveView}>
+      {renderView()}
+    </Layout>
+  );
+}
+
+function AdminLayout() {
+  const [activeView, setActiveView] = useState('dashboard');
+
+  function renderView() {
+    switch (activeView) {
+      case 'dashboard': return <AdminDashboard />;
+      case 'heatmap': return <AttendanceHeatmap />;
+      case 'students': return <AdminDashboard />;
+      case 'user-management': return <SystemAdminPortal />;
+      case 'schedule': return <Schedule />;
+      default: return <AdminDashboard />;
+    }
+  }
+
+  return (
+    <Layout activeView={activeView} onViewChange={setActiveView}>
+      {renderView()}
+    </Layout>
+  );
+}
+
+// ── App ──────────────────────────────────────────────────────────────
+
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+
+          <Route
+            path="/student/*"
+            element={
+              <ProtectedRoute role="student">
+                <StudentLayout />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/teacher/*"
+            element={
+              <ProtectedRoute role="teacher">
+                <TeacherLayout />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/*"
+            element={
+              <ProtectedRoute role="admin">
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all: redirect to login */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

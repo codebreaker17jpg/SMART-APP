@@ -37,26 +37,41 @@ export function AttendanceHeatmap() {
         .eq('day_of_week', selectedDay);
 
       if (schedules) {
-        const today = new Date();
-        const dayOffset = selectedDay - today.getDay();
-        const targetDate = new Date(today);
-        targetDate.setDate(today.getDate() + dayOffset);
-        const dateString = targetDate.toISOString().split('T')[0];
+        const { data: allStudents } = await supabase
+          .from('students')
+          .select('id');
+
+        const totalStudents = allStudents?.length || 0;
 
         const heatmapPromises = schedules.map(async (schedule) => {
+          // Fetch ALL historical records for this subject (not just today's date)
           const { data: attendance } = await supabase
             .from('attendance_records')
-            .select('*')
-            .eq('subject_id', schedule.subject_id)
-            .eq('class_date', dateString);
+            .select('student_id, class_date, status')
+            .eq('subject_id', schedule.subject_id);
 
-          const { data: students } = await supabase
-            .from('students')
-            .select('id');
+          let occupancyRate = 0;
 
-          const totalStudents = students?.length || 0;
-          const presentStudents = attendance?.filter(a => a.status === 'present').length || 0;
-          const occupancyRate = totalStudents > 0 ? Math.round((presentStudents / totalStudents) * 100) : 0;
+          if (attendance && attendance.length > 0) {
+            // Group by unique class dates to get per-session attendance
+            const dateMap = new Map<string, { present: number; total: number }>();
+            for (const record of attendance) {
+              if (!dateMap.has(record.class_date)) {
+                dateMap.set(record.class_date, { present: 0, total: 0 });
+              }
+              const entry = dateMap.get(record.class_date)!;
+              entry.total += 1;
+              if (record.status === 'present') entry.present += 1;
+            }
+
+            // Average the per-session occupancy rates across all dates
+            const sessionRates = Array.from(dateMap.values()).map(
+              (s) => (s.total > 0 ? (s.present / s.total) * 100 : 0)
+            );
+            occupancyRate = Math.round(
+              sessionRates.reduce((acc, r) => acc + r, 0) / sessionRates.length
+            );
+          }
 
           return {
             subject: schedule.subjects.name,
@@ -116,8 +131,8 @@ export function AttendanceHeatmap() {
               key={day.id}
               onClick={() => setSelectedDay(day.id)}
               className={`px-6 py-3 rounded-xl font-semibold transition-all ${selectedDay === day.id
-                  ? 'bg-slate-900 text-white shadow-lg'
-                  : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-300'
+                ? 'bg-slate-900 text-white shadow-lg'
+                : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-300'
                 }`}
             >
               {day.name}
