@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, MapPin } from 'lucide-react';
+import { Calendar, Clock, MapPin, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 type ScheduleItem = {
   id: string;
+  subject_id: string;
   subject_name: string;
   subject_code: string;
   day_of_week: number;
@@ -13,19 +14,57 @@ type ScheduleItem = {
   room_number: string;
 };
 
-export function Schedule({ onViewChange }: { onViewChange?: (view: string) => void }) {
+type SubjectSelectData = {
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  roomNumber: string;
+};
+
+export function Schedule({ onViewChange, onSubjectSelect }: {
+  onViewChange?: (view: string) => void;
+  onSubjectSelect?: (data: SubjectSelectData) => void;
+}) {
   const { currentUser } = useAuth();
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedClass, setSelectedClass] = useState<ScheduleItem | null>(null);
+  const [liveSubjectIds, setLiveSubjectIds] = useState<Set<string>>(new Set());
 
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const timeSlots = ['09:00', '11:00', '14:00', '16:00'];
+  const timeSlots = ['09:00', '09:45', '10:45', '11:30', '13:00', '14:00', '16:00'];
 
   useEffect(() => {
     if (currentUser) {
       loadSchedule();
+      loadLiveSessions();
     }
   }, [currentUser]);
+
+  // Realtime subscription for live session changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('live_sessions_schedule')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'live_sessions' },
+        () => { loadLiveSessions(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  async function loadLiveSessions() {
+    const { data } = await supabase
+      .from('live_sessions')
+      .select('subject_id')
+      .eq('is_active', true);
+
+    if (data) {
+      setLiveSubjectIds(new Set(data.map(s => s.subject_id)));
+    }
+  }
 
   async function loadSchedule() {
     if (!currentUser) return;
@@ -33,7 +72,7 @@ export function Schedule({ onViewChange }: { onViewChange?: (view: string) => vo
     try {
       let query = supabase
         .from('class_schedule')
-        .select('*, subjects(*)');
+        .select('*, subjects!inner(*)');
 
       if (currentUser.role === 'teacher') {
         query = query.eq('subjects.teacher_id', currentUser.id);
@@ -44,8 +83,9 @@ export function Schedule({ onViewChange }: { onViewChange?: (view: string) => vo
       if (data) {
         const formattedData = data.map((item) => ({
           id: item.id,
-          subject_name: item.subjects.name,
-          subject_code: item.subjects.code,
+          subject_id: item.subject_id,
+          subject_name: item.subjects?.name || 'Unknown Subject',
+          subject_code: item.subjects?.code || 'UNK',
           day_of_week: item.day_of_week,
           start_time: item.start_time,
           end_time: item.end_time,
@@ -65,6 +105,7 @@ export function Schedule({ onViewChange }: { onViewChange?: (view: string) => vo
   }
 
   function getColorForSubject(code: string) {
+    if (!code) return 'from-slate-400 to-slate-500';
     const colors = [
       'from-blue-500 to-cyan-500',
       'from-teal-500 to-emerald-500',
@@ -131,12 +172,27 @@ export function Schedule({ onViewChange }: { onViewChange?: (view: string) => vo
                   );
 
                   return (
-                    <div key={`${day}-${timeSlot}`} className="bg-white p-2">
+                    <div key={`${day}-${timeSlot}`} className="bg-white p-2 overflow-visible relative z-0">
                       {classAtTime ? (
                         <div
+                          onClick={() => {
+                            if (onSubjectSelect && currentUser?.role === 'student') {
+                              onSubjectSelect({
+                                subjectId: classAtTime.subject_id,
+                                subjectName: classAtTime.subject_name,
+                                subjectCode: classAtTime.subject_code,
+                                roomNumber: classAtTime.room_number,
+                              });
+                            } else {
+                              setSelectedClass(classAtTime);
+                            }
+                          }}
                           className={`h-full bg-gradient-to-br ${getColorForSubject(
                             classAtTime.subject_code
-                          )} rounded-lg p-3 text-white shadow-md hover:shadow-lg transition-all`}
+                          )} rounded-lg p-3 text-white shadow-md hover:shadow-lg hover:scale-105 cursor-pointer transition-all ${liveSubjectIds.has(classAtTime.subject_id)
+                            ? 'ring-2 ring-green-400 ring-offset-2 animate-pulse shadow-green-400/50 shadow-lg'
+                            : ''
+                            }`}
                         >
                           <div className="font-bold text-sm mb-1">{classAtTime.subject_code}</div>
                           <div className="text-xs mb-2 line-clamp-2">{classAtTime.subject_name}</div>
@@ -188,6 +244,74 @@ export function Schedule({ onViewChange }: { onViewChange?: (view: string) => vo
           );
         })}
       </div>
+
+      {/* Class Details Modal */}
+      {selectedClass && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all border border-slate-200">
+            <div className={`bg-gradient-to-br ${getColorForSubject(selectedClass.subject_code)} p-6 text-white`}>
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-2xl font-bold">{selectedClass.subject_code}</h3>
+                  <p className="text-white/90">{selectedClass.subject_name}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedClass(null)}
+                  className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-slate-700">
+                  <div className="p-2 bg-slate-100 rounded-lg">
+                    <Clock className="w-5 h-5 text-slate-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Time</p>
+                    <p className="font-semibold">{selectedClass.start_time.slice(0, 5)} - {selectedClass.end_time.slice(0, 5)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-slate-700">
+                  <div className="p-2 bg-slate-100 rounded-lg">
+                    <MapPin className="w-5 h-5 text-slate-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Location</p>
+                    <p className="font-semibold">Room {selectedClass.room_number}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-slate-700">
+                  <div className="p-2 bg-slate-100 rounded-lg">
+                    <Calendar className="w-5 h-5 text-slate-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Day</p>
+                    <p className="font-semibold">{days[selectedClass.day_of_week]}</p>
+                  </div>
+                </div>
+              </div>
+
+              {onViewChange && currentUser?.role === 'student' && (
+                <button
+                  onClick={() => {
+                    setSelectedClass(null);
+                    onViewChange('scan');
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition-colors"
+                >
+                  Mark Attendance
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

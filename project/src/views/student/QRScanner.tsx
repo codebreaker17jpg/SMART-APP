@@ -9,6 +9,9 @@ export function QRScanner() {
   const { currentUser } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const isProcessingRef = useRef(false);
+  const lastScannedRef = useRef<string>('');
+  const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<'success' | 'error' | 'verifying_face' | null>(null);
   const [faceMatchStatus, setFaceMatchStatus] = useState<'idle' | 'scanning' | 'match' | 'mismatch'>('idle');
@@ -30,10 +33,15 @@ export function QRScanner() {
   const handleScan = async (detectedCodes: any[]) => {
     if (detectedCodes.length === 0 || !currentUser) return;
 
+    const qrText = detectedCodes[0].rawValue;
+    if (isProcessingRef.current) return;
+    if (qrText === lastScannedRef.current) return;
+
+    isProcessingRef.current = true;
+    lastScannedRef.current = qrText;
+
     // Stop scanning once we get a code
     setScanning(false);
-
-    const qrText = detectedCodes[0].rawValue;
 
     try {
       // 1. Validate the live session
@@ -91,6 +99,10 @@ export function QRScanner() {
       console.error('Error scanning QR:', err);
       setErrorMessage("An unexpected error occurred. Please try again.");
       setScanResult('error');
+    } finally {
+      cooldownTimerRef.current = setTimeout(() => {
+        isProcessingRef.current = false;
+      }, 3000);
     }
   };
 
@@ -146,6 +158,7 @@ export function QRScanner() {
   useEffect(() => {
     return () => {
       stopCamera();
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
     };
   }, []);
 
@@ -189,6 +202,8 @@ export function QRScanner() {
   const startScanning = () => {
     setScanResult(null);
     setFaceMatchStatus('idle');
+    isProcessingRef.current = false;
+    lastScannedRef.current = '';
     setScanning(true);
   };
 

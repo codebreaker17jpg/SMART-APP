@@ -36,8 +36,82 @@ export function LiveClass() {
   useEffect(() => {
     if (currentUser) {
       loadSubjects();
+      checkActiveSession();
     }
   }, [currentUser]);
+
+  async function checkActiveSession() {
+    if (!currentUser) return;
+    try {
+      const { data } = await supabase
+        .from('live_sessions')
+        .select('*')
+        .eq('teacher_id', currentUser.id)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setSelectedSubject(data.subject_id);
+        setSessionId(data.id);
+        setQrCode(data.qr_code);
+        setSessionActive(true);
+        localStorage.setItem('activeSessionId', data.id);
+      }
+    } catch (e) {
+      // No active session
+    }
+  }
+
+  // Realtime subscription for live attendance updates
+  useEffect(() => {
+    let attendanceSubscription: any;
+
+    if (sessionActive && selectedSubject) {
+      loadAttendanceCount();
+
+      const today = new Date().toISOString().split('T')[0];
+
+      attendanceSubscription = supabase
+        .channel('attendance_records_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'attendance_records',
+            filter: `subject_id=eq.${selectedSubject}`,
+          },
+          (payload) => {
+            console.log('[Realtime] attendance insert:', payload.new);
+            if (payload.new.class_date === today) {
+              setAttendanceCount((prev) => prev + 1);
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      if (attendanceSubscription) {
+        supabase.removeChannel(attendanceSubscription);
+      }
+    };
+  }, [sessionActive, selectedSubject]);
+
+  async function loadAttendanceCount() {
+    const today = new Date().toISOString().split('T')[0];
+    const { count } = await supabase
+      .from('attendance_records')
+      .select('*', { count: 'exact', head: true })
+      .eq('subject_id', selectedSubject)
+      .eq('class_date', today)
+      .eq('status', 'present');
+
+    if (count !== null) {
+      setAttendanceCount(count);
+    }
+  }
 
   async function loadSubjects() {
     if (!currentUser) return;
@@ -69,6 +143,13 @@ export function LiveClass() {
   async function startSession() {
     if (!selectedSubject || !currentUser) return;
 
+    // Deactivate any previous active sessions for this teacher
+    await supabase
+      .from('live_sessions')
+      .update({ is_active: false })
+      .eq('teacher_id', currentUser.id)
+      .eq('is_active', true);
+
     const code = generateQRCode();
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
@@ -88,7 +169,8 @@ export function LiveClass() {
         setSessionId(data.id);
       }
       setSessionActive(true);
-      setAttendanceCount(Math.floor(Math.random() * 20) + 30);
+      setAttendanceCount(0);
+      if (data) localStorage.setItem('activeSessionId', data.id);
     } catch (error) {
       console.error('Error starting session:', error);
     }
@@ -108,6 +190,7 @@ export function LiveClass() {
     setSessionActive(false);
     setQrCode('');
     setSessionId(null);
+    localStorage.removeItem('activeSessionId');
   }
 
   const selectedSubjectData = subjects.find(s => s.id === selectedSubject);

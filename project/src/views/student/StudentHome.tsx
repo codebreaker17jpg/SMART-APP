@@ -50,7 +50,7 @@ export function StudentHome({ onViewChange }: { onViewChange?: (view: string) =>
 
         if (upcoming) {
           setNextClass({
-            name: upcoming.subjects.name,
+            name: upcoming.subjects?.name || 'Unknown Subject',
             time: upcoming.start_time,
             room: upcoming.room_number,
           });

@@ -10,6 +10,7 @@ import { StudentHome } from './views/student/StudentHome';
 import { QRScanner } from './views/student/QRScanner';
 import { FaceEnrollment } from './views/student/FaceEnrollment';
 import { StudentCurriculum } from './views/student/StudentCurriculum';
+import { SubjectSession } from './views/student/SubjectSession';
 
 // Teacher views
 import { LiveClass } from './views/teacher/LiveClass';
@@ -29,6 +30,14 @@ import { Schedule } from './views/shared/Schedule';
 
 function StudentLayout() {
   const [activeView, setActiveView] = useState('home');
+  const [selectedSubject, setSelectedSubject] = useState<{
+    subjectId: string; subjectName: string; subjectCode: string; roomNumber: string;
+  } | null>(null);
+
+  function handleSubjectSelect(data: { subjectId: string; subjectName: string; subjectCode: string; roomNumber: string }) {
+    setSelectedSubject(data);
+    setActiveView('subject-session');
+  }
 
   function renderView() {
     switch (activeView) {
@@ -36,7 +45,17 @@ function StudentLayout() {
       case 'scan': return <QRScanner />;
       case 'face-enrollment': return <FaceEnrollment />;
       case 'curriculum': return <StudentCurriculum onViewChange={setActiveView} />;
-      case 'schedule': return <Schedule onViewChange={setActiveView} />;
+      case 'schedule': return <Schedule onViewChange={setActiveView} onSubjectSelect={handleSubjectSelect} />;
+      case 'subject-session':
+        return selectedSubject ? (
+          <SubjectSession
+            subjectId={selectedSubject.subjectId}
+            subjectName={selectedSubject.subjectName}
+            subjectCode={selectedSubject.subjectCode}
+            roomNumber={selectedSubject.roomNumber}
+            onBack={() => setActiveView('schedule')}
+          />
+        ) : <StudentHome onViewChange={setActiveView} />;
       default: return <StudentHome onViewChange={setActiveView} />;
     }
   }
