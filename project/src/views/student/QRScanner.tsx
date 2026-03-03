@@ -216,11 +216,10 @@ export function QRScanner() {
                 <div className="w-full h-full relative">
                   <Scanner
                     onScan={handleScan}
-                    components={{
-                      onOff: false,
-                      torch: false,
-                      zoom: false,
-                      finder: true
+                    onError={(err) => {
+                      console.error("Scanner Error:", err);
+                      setErrorMessage(err instanceof Error ? err.message : String(err));
+                      setScanResult('error');
                     }}
                     styles={{
                       container: { width: '100%', height: '100%' }
