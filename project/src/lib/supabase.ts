@@ -49,6 +49,8 @@ export type AttendanceRecord = {
   status: 'present' | 'absent' | 'late';
   marked_at: string;
   marked_by: string;
+  verification_method?: string;
+  session_id?: string;
   created_at: string;
 };
 

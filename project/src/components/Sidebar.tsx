@@ -35,6 +35,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
 
   const teacherNav = [
     { id: 'live', label: 'Live Class', icon: Users },
+    { id: 'face-attendance', label: 'Face Attendance', icon: ScanFace },
     { id: 'analytics', label: 'Analytics', icon: PieChart },
     { id: 'curriculum-manager', label: 'Curriculum', icon: BookOpen },
     { id: 'schedule', label: 'Schedule', icon: CalendarDays },

@@ -77,6 +77,19 @@ class AttendanceScanResponse(BaseModel):
     attendance_id: Optional[str] = None
 
 
+class FaceAttendanceRequest(BaseModel):
+    """Payload for POST /attendance/face endpoint."""
+    student_id: str = Field(..., description="UUID of the recognised student")
+    session_id: str = Field(..., description="UUID of the active live session")
+    confidence: float = Field(..., ge=0, le=1, description="Match confidence (0-1)")
+
+
+class FaceAttendanceResponse(BaseModel):
+    success: bool
+    message: str
+    attendance_id: Optional[str] = None
+
+
 # ── Curriculum ────────────────────────────────────────────────────────
 
 class CurriculumTopicBase(BaseModel):

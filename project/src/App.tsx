@@ -16,6 +16,7 @@ import { SubjectSession } from './views/student/SubjectSession';
 import { LiveClass } from './views/teacher/LiveClass';
 import { TeacherAnalytics } from './views/teacher/TeacherAnalytics';
 import { CurriculumManager } from './views/teacher/CurriculumManager';
+import { FaceAttendance } from './views/teacher/FaceAttendance';
 
 // Admin views
 import { AdminDashboard } from './views/admin/AdminDashboard';
@@ -73,6 +74,7 @@ function TeacherLayout() {
   function renderView() {
     switch (activeView) {
       case 'live': return <LiveClass />;
+      case 'face-attendance': return <FaceAttendance />;
       case 'analytics': return <TeacherAnalytics />;
       case 'curriculum-manager': return <CurriculumManager />;
       case 'schedule': return <Schedule />;
